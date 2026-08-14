@@ -7,6 +7,11 @@
 //
 // A literal "guest" token is accepted ONLY where the endpoint opts in
 // (`allowGuest`). Guests are never persisted and get no user id back.
+//
+// Key resolution: prefers the new-style secret key injected by Supabase as
+// `SUPABASE_SECRET_KEYS` (a JSON object keyed by name), falling back to the
+// legacy `SUPABASE_SERVICE_ROLE_KEY` JWT. This keeps functions working if the
+// legacy keys are disabled after a service-role key rotation.
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyFirebaseToken } from "./firebaseAuth.ts";
@@ -22,11 +27,27 @@ export interface AuthedContext {
   adminRole: string | null;
 }
 
+/** Resolves the server-side Supabase key: new secret key first, legacy JWT fallback. */
+export function resolveServiceRoleKey(): string {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const json = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (json) {
+    try {
+      const keys: Record<string, string> = JSON.parse(json);
+      const preferred = keys["route2go_backend"] ?? keys["default"];
+      if (preferred) return preferred;
+    } catch {
+      // fall through to legacy if the env isn't valid JSON
+    }
+  }
+  return legacy ?? "";
+}
+
 function supabaseClient(): SupabaseClient {
   const url = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = resolveServiceRoleKey();
   if (!url || !key) {
-    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
+    throw new Error("SUPABASE_URL and a service key are required.");
   }
   return createClient(url, key);
 }

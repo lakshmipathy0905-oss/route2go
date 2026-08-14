@@ -1,6 +1,7 @@
 // Fuel price provider abstraction. A real deployment should back this with a
 // Supabase table (public.fuel_prices) refreshed by a scheduled job pulling
 // from a licensed fuel-price feed, falling back to the mock only in dev.
+import { resolveServiceRoleKey } from "../auth.ts";
 
 export interface FuelPriceResult {
   price: number;
@@ -50,7 +51,7 @@ class SupabaseFuelPriceProvider implements FuelPriceProvider {
 
 export function getFuelPriceProvider(): FuelPriceProvider {
   const url = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = resolveServiceRoleKey();
   if (url && key && Deno.env.get("USE_LIVE_FUEL_PRICES") === "true") {
     return new SupabaseFuelPriceProvider(url, key);
   }

@@ -2,6 +2,7 @@
 // where known, otherwise a flagged estimate — never a silent zero.
 
 import type { RouteSegment } from "./routingProvider.ts";
+import { resolveServiceRoleKey } from "../auth.ts";
 
 export interface TollResult {
   totalToll: number;
@@ -76,7 +77,7 @@ class SupabaseTollProvider implements TollProvider {
 
 export function getTollProvider(): TollProvider {
   const url = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const key = resolveServiceRoleKey();
   if (url && key && Deno.env.get("USE_LIVE_TOLL_DATA") === "true") {
     return new SupabaseTollProvider(url, key);
   }

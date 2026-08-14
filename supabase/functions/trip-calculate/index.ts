@@ -18,6 +18,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyFirebaseToken } from "../_shared/firebaseAuth.ts";
+import { resolveServiceRoleKey } from "../_shared/auth.ts";
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { getRoutingProvider } from "../_shared/providers/routingProvider.ts";
 import { getFuelPriceProvider } from "../_shared/providers/fuelPriceProvider.ts";
@@ -25,7 +26,7 @@ import { getTollProvider } from "../_shared/providers/tollProvider.ts";
 import { computeFuelCost, round2, SAFETY_BUFFER_PCT } from "../_shared/fuelCostEngine.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SERVICE_ROLE_KEY = resolveServiceRoleKey();
 
 // readPhaseFlags and the fuel engine live in _shared modules; the fuel engine
 // (spec Section 12.1) is unit-tested in _shared/fuelCostEngine_test.ts.

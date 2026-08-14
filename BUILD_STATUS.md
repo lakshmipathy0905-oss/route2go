@@ -75,7 +75,12 @@ project's own rule: "do not fake unavailable functionality."
 
 ## Realistic next steps for "go live"
 
-1. Rotate the Supabase service-role key before publishing.
+1. ✅ Rotate the Supabase service-role key before publishing — **DONE 2026-08-14**:
+   created secret key `route2go_backend`, migrated all 18 edge functions to
+   resolve it from `SUPABASE_SECRET_KEYS` (fallback to legacy), redeployed,
+   then **disabled the legacy anon/service_role keys**. The previously exposed
+   `service_role` JWT now returns 401. The app is unaffected (it makes no
+   direct Supabase DB calls; all data flows through edge functions).
 2. Execute the CI workflows once in GitHub Actions and fix anything that
    surfaces on the runner.
 3. Create the Android release keystore + `key.properties`; add the iOS
