@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Firebase Auth is the sole source of identity in Route2Go. Every privileged
 /// backend call sends the Firebase ID token as a bearer token; the app never
@@ -21,10 +22,21 @@ final isLoggedInProvider = Provider<bool>((ref) {
 });
 
 class AuthRepository {
-  AuthRepository(this._auth);
+  AuthRepository(this._auth, {GoogleSignIn? googleSignIn})
+      : _googleSignIn = googleSignIn ?? GoogleSignIn();
   final FirebaseAuth _auth;
+  final GoogleSignIn _googleSignIn;
 
-  Future<UserCredential> signInWithGoogle(AuthCredential credential) {
+  Future<UserCredential> signInWithGoogle() async {
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) {
+      throw FirebaseAuthException(code: 'cancelled-popup-request');
+    }
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      idToken: googleAuth.idToken,
+      accessToken: googleAuth.accessToken,
+    );
     return _auth.signInWithCredential(credential);
   }
 

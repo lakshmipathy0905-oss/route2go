@@ -54,6 +54,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return "That code didn't match. Please check and try again.";
       case 'too-many-requests':
         return 'Too many attempts. Please wait a moment and try again.';
+      case 'cancelled-popup-request':
+        return 'Google sign-in was cancelled.';
       default:
         return 'Sign-in failed. Please try again.';
     }
@@ -164,11 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn(AuthRepository authRepo) async {
-    // Requires the `google_sign_in` package + platform config (google-services.json /
-    // GoogleService-Info.plist) — wired here as the integration point; see README
-    // "Firebase setup" for the exact platform configuration steps.
-    setState(() => _error =
-        'Google Sign-In needs your Firebase project\'s OAuth client configured — see README > Firebase setup.');
+  Future<void> _handleGoogleSignIn(AuthRepository authRepo) {
+    return _run(authRepo.signInWithGoogle);
   }
 }

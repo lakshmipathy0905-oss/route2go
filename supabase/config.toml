@@ -51,6 +51,9 @@ enable_signup = true
 [functions.trip-calculate]
 verify_jwt = false
 
+[functions.route-nav]
+verify_jwt = false
+
 [functions.vehicles]
 verify_jwt = false
 
