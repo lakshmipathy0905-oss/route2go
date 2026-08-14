@@ -180,6 +180,7 @@ Deno.serve(async (req: Request) => {
       total_cost: totalCost,
       provider: alt.provider,
       geometry: alt.geometry,
+      steps: alt.steps,
       fetched_at: new Date().toISOString(),
     });
   }

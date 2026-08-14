@@ -27,13 +27,9 @@ class ConfirmTripScreen extends ConsumerWidget {
     final calc = ref.watch(tripCalculationProvider).valueOrNull;
     final selection = ref.watch(tripSelectionProvider);
     final itinerary = ref.watch(itineraryProvider).valueOrNull;
+    final selectedType = ref.watch(selectedRouteTypeProvider);
 
-    final route = calc?.routes.isEmpty ?? true
-        ? null
-        : calc!.routes.firstWhere(
-            (r) => r.routeType == 'recommended',
-            orElse: () => calc.routes.first,
-          );
+    final route = calc == null ? null : selectRoute(calc, selectedType);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Confirm Your Trip')),

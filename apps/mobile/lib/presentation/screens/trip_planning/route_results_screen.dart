@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -12,12 +14,46 @@ import '../../widgets/app_widgets.dart';
 import '../../widgets/sharing_widgets.dart';
 import '../../../domain/entities/route_option.dart';
 
-class RouteResultsScreen extends ConsumerWidget {
+class RouteResultsScreen extends ConsumerStatefulWidget {
   const RouteResultsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RouteResultsScreen> createState() => _RouteResultsScreenState();
+}
+
+class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
+  final MapController _mapController = MapController();
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  List<LatLng> _toLatLng(List<List<double>> coords) =>
+      coords.map((p) => LatLng(p[1], p[0])).toList();
+
+  LatLngBounds? _routeBounds(List<RouteOption> routes) {
+    LatLngBounds? bounds;
+    for (final r in routes) {
+      final coords = r.geometryCoordinates;
+      if (coords == null || coords.isEmpty) continue;
+      for (final p in coords) {
+        final pt = LatLng(p[1], p[0]);
+        if (bounds == null) {
+          bounds = LatLngBounds(pt, pt);
+        } else {
+          bounds.extend(pt);
+        }
+      }
+    }
+    return bounds;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final calcState = ref.watch(tripCalculationProvider);
+    final selectedType = ref.watch(selectedRouteTypeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Route Options')),
@@ -37,18 +73,30 @@ class RouteResultsScreen extends ConsumerWidget {
               (r) => r.routeType == 'recommended',
               orElse: () => routes[0],
             );
+            final selected = selectRoute(result, selectedType);
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
-                const HintText('Every cost below is an estimate from the current data source.'),
-                const SizedBox(height: AppSpacing.md),
-                if (_hasAnyTollEstimated(routes))
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: AppSpacing.md),
-                    child: HintText('Toll costs marked "Estimated" may change at the plaza.'),
-                  ),
+                _RouteMapCard(
+                  routes: routes,
+                  selectedType: selected?.routeType ?? recommended.routeType,
+                  mapController: _mapController,
+                  bounds: _routeBounds(routes),
+                  toLatLng: _toLatLng,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const HintText('Tap a route below to select it for the trip.'),
                 const SizedBox(height: AppSpacing.sm),
-                _ComparisonCard(routes: routes, recommended: recommended),
+                if (_hasAnyTollEstimated(routes))
+                  const HintText('Toll costs marked "Estimated" may change at the plaza.'),
+                const SizedBox(height: AppSpacing.sm),
+                _ComparisonCard(
+                  routes: routes,
+                  recommended: recommended,
+                  selectedType: selected?.routeType ?? recommended.routeType,
+                  onSelect: (type) =>
+                      ref.read(selectedRouteTypeProvider.notifier).state = type,
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 if (result.budgetStatus != null) ...[
                   Card(
@@ -110,11 +158,159 @@ class RouteResultsScreen extends ConsumerWidget {
       routes.any((r) => r.tollConfidence == 'estimated');
 }
 
+class _RouteMapCard extends StatefulWidget {
+  const _RouteMapCard({
+    required this.routes,
+    required this.selectedType,
+    required this.mapController,
+    required this.bounds,
+    required this.toLatLng,
+  });
+
+  final List<RouteOption> routes;
+  final String selectedType;
+  final MapController mapController;
+  final LatLngBounds? bounds;
+  final List<LatLng> Function(List<List<double>>) toLatLng;
+
+  @override
+  State<_RouteMapCard> createState() => _RouteMapCardState();
+}
+
+class _RouteMapCardState extends State<_RouteMapCard> {
+  bool _fitted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_fitted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fit());
+    }
+  }
+
+  void _fit() {
+    final bounds = widget.bounds;
+    if (bounds == null) {
+      _fitted = true;
+      return;
+    }
+    widget.mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
+    );
+    _fitted = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final routes = widget.routes;
+    final selected = routes.where((r) => r.routeType == widget.selectedType).firstOrNull;
+    final activeCoords = selected?.geometryCoordinates;
+    // No geometry anywhere -> nothing to draw; render a compact hint instead
+    // of a dead map.
+    if (routes.every((r) => r.geometryCoordinates == null)) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            children: [
+              Icon(Icons.map_outlined, color: AppColors.textSecondary),
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  'No route map available for this provider.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 220,
+            child: FlutterMap(
+              mapController: widget.mapController,
+              options: MapOptions(
+                initialCenter: activeCoords == null
+                    ? const LatLng(20.0, 78.0)
+                    : widget.toLatLng(activeCoords).first,
+                initialZoom: 6,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.route2go.route2go',
+                ),
+                PolylineLayer(
+                  polylines: [
+                    for (final r in routes)
+                      if (r.geometryCoordinates != null)
+                        Polyline(
+                          points: widget.toLatLng(r.geometryCoordinates!),
+                          strokeWidth: r.routeType == widget.selectedType ? 6 : 3,
+                          color: r.routeType == widget.selectedType
+                              ? AppColors.primary
+                              : AppColors.primary.withValues(alpha: 0.3),
+                        ),
+                  ],
+                ),
+                if (activeCoords != null && activeCoords.isNotEmpty) ...[
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: widget.toLatLng(activeCoords).first,
+                        width: 36,
+                        height: 36,
+                        child: const Icon(Icons.trip_origin, size: 36, color: AppColors.primary),
+                      ),
+                      Marker(
+                        point: widget.toLatLng(activeCoords).last,
+                        width: 36,
+                        height: 36,
+                        child: const Icon(Icons.location_on, size: 36, color: AppColors.error),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Text(
+              'Map data © OpenStreetMap contributors',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ComparisonCard extends StatelessWidget {
-  const _ComparisonCard({required this.routes, required this.recommended});
+  const _ComparisonCard({
+    required this.routes,
+    required this.recommended,
+    required this.selectedType,
+    required this.onSelect,
+  });
 
   final List<RouteOption> routes;
   final RouteOption recommended;
+  final String selectedType;
+  final void Function(String type) onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +366,21 @@ class _ComparisonCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             const HintText(
               'Cost/time deltas shown relative to the recommended route, which is highlighted.',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (final r in routes)
+                  ActionChip(
+                    label: Text(r.label),
+                    onPressed: () => onSelect(r.routeType),
+                    avatar: r.routeType == selectedType
+                        ? const Icon(Icons.check, size: 16)
+                        : null,
+                  ),
+              ],
             ),
           ],
         ),

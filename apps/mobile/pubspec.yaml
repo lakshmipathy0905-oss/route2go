@@ -50,6 +50,7 @@ dependencies:
   geolocator: ^14.0.2
   connectivity_plus: ^7.3.1
   package_info_plus: ^9.0.1
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:

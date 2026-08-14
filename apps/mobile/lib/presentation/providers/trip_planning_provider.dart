@@ -51,6 +51,25 @@ class TripSelection {
 
 final tripSelectionProvider = StateProvider<TripSelection>((ref) => const TripSelection());
 
+/// Which route alternative is active for the downstream trip/navigation flow
+/// (confirm trip, live trip, budget). Defaults to 'recommended'; the route
+/// results screen updates it when the user taps another option.
+final selectedRouteTypeProvider = StateProvider<String>((ref) => 'recommended');
+
+/// Resolves the active route from a calculation result, honouring the user's
+/// selection and falling back to the recommended (or first) route if the
+/// selected type is absent.
+RouteOption? selectRoute(TripCalculationResult? result, String selectedType) {
+  if (result == null || result.routes.isEmpty) return null;
+  for (final r in result.routes) {
+    if (r.routeType == selectedType) return r;
+  }
+  for (final r in result.routes) {
+    if (r.routeType == 'recommended') return r;
+  }
+  return result.routes.first;
+}
+
 /// Everything the user has entered in the Plan Trip flow (spec Section 5.5).
 /// This is intentionally a separate, persistent form-state object from the
 /// calculation result: if calculation fails, the form data must be preserved
