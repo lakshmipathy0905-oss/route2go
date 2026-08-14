@@ -49,7 +49,10 @@ jobs:
           done
           deno check --allow-import _shared/auth.ts _shared/http.ts \
             _shared/firebaseAuth.ts _shared/itineraryScheduler.ts \
+            _shared/fuelCostEngine.ts \
             _shared/providers/geocodingProvider.ts
 
       - name: Run unit tests
-        run: deno test --allow-import --allow-env _shared/itinerary_scheduler_test.ts
+        run: |
+          deno test --allow-import --allow-env _shared/itinerary_scheduler_test.ts
+          deno test --allow-import _shared/fuelCostEngine_test.ts

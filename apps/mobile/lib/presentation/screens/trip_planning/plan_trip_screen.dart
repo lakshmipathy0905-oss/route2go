@@ -186,7 +186,11 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Mileage (km/l)',
+                labelText: switch (_fuelType) {
+                  'ev' => 'Efficiency (kWh/km)',
+                  'cng' => 'Mileage (km/kg)',
+                  _ => 'Mileage (km/l)',
+                },
                 helperText: VehicleRanges.describe(_fuelType),
               ),
             ),
@@ -195,9 +199,10 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
               controller: _fuelPriceCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText:
-                    'Fuel price per litre (₹) — blank uses the latest known price',
+              decoration: InputDecoration(
+                labelText: _fuelType == 'ev'
+                    ? 'Charging rate per kWh (₹) — blank uses known rate'
+                    : 'Fuel price per litre (₹) — blank uses the latest known price',
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -298,7 +303,12 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
       travellers: _travellers,
       fuelType: _fuelType,
       mileageKmpl: mileage,
-      fuelPricePerLitre: double.tryParse(_fuelPriceCtrl.text.trim()),
+      fuelPricePerLitre: _fuelType == 'ev'
+          ? null
+          : double.tryParse(_fuelPriceCtrl.text.trim()),
+      evPricePerKwh: _fuelType == 'ev'
+          ? double.tryParse(_fuelPriceCtrl.text.trim())
+          : null,
       budgetTotal: double.tryParse(_budgetCtrl.text.trim()),
     );
 

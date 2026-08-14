@@ -22,9 +22,13 @@ import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { getRoutingProvider } from "../_shared/providers/routingProvider.ts";
 import { getFuelPriceProvider } from "../_shared/providers/fuelPriceProvider.ts";
 import { getTollProvider } from "../_shared/providers/tollProvider.ts";
+import { computeFuelCost, round2, SAFETY_BUFFER_PCT } from "../_shared/fuelCostEngine.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// readPhaseFlags and the fuel engine live in _shared modules; the fuel engine
+// (spec Section 12.1) is unit-tested in _shared/fuelCostEngine_test.ts.
 
 interface CalculateRequest {
   origin: { label: string; lat: number; lng: number };
@@ -37,11 +41,22 @@ interface CalculateRequest {
     cng_mileage_km_per_kg?: number;
   };
   fuel_price_per_litre?: number;
+  ev_price_per_kwh?: number;
   budget_total?: number;
   trip_id?: string; // optional: attach results to an existing draft trip
 }
 
-const SAFETY_BUFFER_PCT = 0.06; // 6%, within spec's 5-8% default range; server-configurable in real deploy
+// Reads the gating flags for cost paths. Falls back to the same statics the// /feature-flags endpoint publishes so behaviour is consistent even if the
+// table is unreachable (never fabricate a cost because a flag read failed).
+async function readPhaseFlags(supabase: any): Promise<Record<string, boolean>> {
+  const defaults: Record<string, boolean> = { phase2_ev: false, phase2_cng: false };
+  const { data, error } = await supabase.from("feature_flags").select("key, enabled");
+  if (error || !data) return defaults;
+  for (const row of data) {
+    if (typeof row.enabled === "boolean") defaults[row.key] = row.enabled;
+  }
+  return defaults;
+}
 
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
@@ -127,19 +142,24 @@ Deno.serve(async (req: Request) => {
     return jsonError(404, "NO_ROUTE_FOUND", "No route available for this input. Check the locations or try a nearby major town.", reqId, false);
   }
 
-  // 5. Fuel price resolution: manual override always wins over provider data
+  // 5. Fuel price resolution: manual override always wins over provider data.
+  //    For EV/CNG the cost engine is gated behind phase2_ev / phase2_cng;
+  //    read the flags once so the gating uses live values, not stale statics.
+  const phaseFlags = await readPhaseFlags(supabase);
   const fuelPriceProvider = getFuelPriceProvider();
-  let fuelPricePerLitre = body.fuel_price_per_litre ?? null;
-  let fuelPriceSource: "manual" | "provider" | "unavailable" = fuelPricePerLitre ? "manual" : "unavailable";
+  let fuelPricePerUnit: number | null = body.vehicle.fuel_type === "ev"
+    ? (body.ev_price_per_kwh ?? null)
+    : (body.fuel_price_per_litre ?? null);
+  let fuelPriceSource: "manual" | "provider" | "unavailable" = fuelPricePerUnit ? "manual" : "unavailable";
   let fuelPriceFreshness: string | null = null;
 
-  if (!fuelPricePerLitre && body.vehicle.fuel_type !== "ev") {
+  if (!fuelPricePerUnit && body.vehicle.fuel_type !== "ev") {
     try {
       const priceInfo = await fuelPriceProvider.getPrice({
         region: "IN", // region derivation from lat/lng is a follow-up refinement
-        fuelType: body.vehicle.fuel_type,
+        fuelType: body.vehicle.fuel_type === "cng" ? "cng" : body.vehicle.fuel_type,
       });
-      fuelPricePerLitre = priceInfo.price;
+      fuelPricePerUnit = priceInfo.price;
       fuelPriceSource = "provider";
       fuelPriceFreshness = priceInfo.lastUpdated;
     } catch {
@@ -155,7 +175,9 @@ Deno.serve(async (req: Request) => {
     const fuelResult = computeFuelCost({
       distanceKm: alt.distanceKm,
       vehicle: body.vehicle,
-      fuelPricePerLitre,
+      fuelPricePerUnit,
+      phase2Ev: phaseFlags["phase2_ev"],
+      phase2Cng: phaseFlags["phase2_cng"],
     });
 
     let tollResult;
@@ -214,7 +236,7 @@ Deno.serve(async (req: Request) => {
           destination_lng: body.destination.lng,
           trip_type: body.trip_type,
           budget_total: body.budget_total ?? null,
-          fuel_price_per_litre: fuelPricePerLitre,
+          fuel_price_per_litre: fuelPricePerUnit,
           status: "calculated",
         })
         .select("id")
@@ -253,42 +275,6 @@ Deno.serve(async (req: Request) => {
     reqId
   );
 });
-
-// ============================================================
-// Fuel cost engine — matches spec Section 12.1 exactly
-// ============================================================
-function computeFuelCost(params: {
-  distanceKm: number;
-  vehicle: CalculateRequest["vehicle"];
-  fuelPricePerLitre: number | null;
-}): { cost: number | null; confidence: "calculated" | "unavailable" } {
-  const { distanceKm, vehicle } = params;
-
-  if (vehicle.fuel_type === "ev") {
-    if (!vehicle.ev_efficiency_kwh_per_km) {
-      return { cost: null, confidence: "unavailable" };
-    }
-    // Charging cost intentionally left to a dedicated EV pricing provider (Phase 2 flag).
-    // MVP surfaces energy required; cost is "unavailable" until phase2_ev is enabled.
-    return { cost: null, confidence: "unavailable" };
-  }
-
-  if (vehicle.fuel_type === "cng") {
-    if (!vehicle.cng_mileage_km_per_kg) {
-      return { cost: null, confidence: "unavailable" };
-    }
-    return { cost: null, confidence: "unavailable" }; // gated behind phase2_cng
-  }
-
-  // petrol / diesel
-  if (!vehicle.mileage_kmpl || !params.fuelPricePerLitre) {
-    return { cost: null, confidence: "unavailable" };
-  }
-
-  const fuelRequiredLitres = distanceKm / vehicle.mileage_kmpl;
-  const cost = fuelRequiredLitres * params.fuelPricePerLitre * (1 + SAFETY_BUFFER_PCT);
-  return { cost: round2(cost), confidence: "calculated" };
-}
 
 // ============================================================
 // Budget engine — matches spec Section 13 exactly
@@ -354,13 +340,12 @@ function validateCalculateRequest(body: CalculateRequest): string | null {
   if (body.budget_total !== undefined && body.budget_total < 0) {
     return "budget_total cannot be negative.";
   }
+  if (body.ev_price_per_kwh !== undefined && body.ev_price_per_kwh < 0) {
+    return "ev_price_per_kwh cannot be negative.";
+  }
   const coordInRange = (lat: number, lng: number) => lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   if (!coordInRange(body.origin.lat, body.origin.lng) || !coordInRange(body.destination.lat, body.destination.lng)) {
     return "Coordinates are out of valid range.";
   }
   return null;
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }

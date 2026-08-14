@@ -11,6 +11,14 @@ class TripSummaryResult {
   final String? maybeId;
 }
 
+Map<String, double> _mileageFields(String fuelType, double mileage) {
+  return switch (fuelType) {
+    'ev' => {'ev_efficiency_kwh_per_km': mileage},
+    'cng' => {'cng_mileage_km_per_kg': mileage},
+    _ => {'mileage_kmpl': mileage},
+  };
+}
+
 class TripRepository extends BaseRepository {
   TripRepository(this._apiClient);
   final ApiClient _apiClient;
@@ -25,6 +33,7 @@ class TripRepository extends BaseRepository {
     required String fuelType,
     double? mileageKmpl,
     double? fuelPricePerLitre,
+    double? evPricePerKwh,
     double? budgetTotal,
     String? tripId,
   }) async {
@@ -45,10 +54,11 @@ class TripRepository extends BaseRepository {
         'trip_type': tripType,
         'vehicle': {
           'fuel_type': fuelType,
-          if (mileageKmpl != null) 'mileage_kmpl': mileageKmpl,
+          if (mileageKmpl != null) ..._mileageFields(fuelType, mileageKmpl),
         },
         if (fuelPricePerLitre != null)
           'fuel_price_per_litre': fuelPricePerLitre,
+        if (evPricePerKwh != null) 'ev_price_per_kwh': evPricePerKwh,
         if (budgetTotal != null) 'budget_total': budgetTotal,
         if (tripId != null) 'trip_id': tripId,
       },

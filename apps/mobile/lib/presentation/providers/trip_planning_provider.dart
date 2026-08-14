@@ -93,6 +93,7 @@ class TripPlanningForm {
     this.fuelType = 'petrol',
     this.mileageKmpl,
     this.fuelPricePerLitre,
+    this.evPricePerKwh,
     this.budgetTotal,
     this.interests = const [],
   });
@@ -108,6 +109,7 @@ class TripPlanningForm {
   final String fuelType;
   final double? mileageKmpl;
   final double? fuelPricePerLitre;
+  final double? evPricePerKwh;
   final double? budgetTotal;
   final List<String> interests;
 
@@ -132,6 +134,7 @@ class TripPlanningForm {
     String? fuelType,
     double? mileageKmpl,
     double? fuelPricePerLitre,
+    double? evPricePerKwh,
     double? budgetTotal,
     List<String>? interests,
   }) {
@@ -147,6 +150,7 @@ class TripPlanningForm {
       fuelType: fuelType ?? this.fuelType,
       mileageKmpl: mileageKmpl ?? this.mileageKmpl,
       fuelPricePerLitre: fuelPricePerLitre ?? this.fuelPricePerLitre,
+      evPricePerKwh: evPricePerKwh ?? this.evPricePerKwh,
       budgetTotal: budgetTotal ?? this.budgetTotal,
       interests: interests ?? this.interests,
     );
@@ -190,6 +194,7 @@ class TripCalculationNotifier extends AsyncNotifier<TripCalculationResult?> {
         fuelType: form.fuelType,
         mileageKmpl: form.mileageKmpl,
         fuelPricePerLitre: form.fuelPricePerLitre,
+        evPricePerKwh: form.evPricePerKwh,
         budgetTotal: form.budgetTotal,
       );
     });
