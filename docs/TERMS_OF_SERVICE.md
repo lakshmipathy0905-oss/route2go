@@ -49,4 +49,4 @@ We may update these terms from time to time. Material changes will be
 announced in-app.
 
 ## 11. Contact
-support@route2go.example — placeholder, replace before launch.
+route2go1@gmail.com — placeholder, replace before launch.

@@ -48,7 +48,7 @@ account at any time in Settings; deletion removes your trips, vehicles,
 expenses, notifications and profile.
 
 ## 7. Your rights
-Access, correct, export, or delete your data. Email privacy@route2go.example
+Access, correct, export, or delete your data. Email route2go1@gmail.com
 (placeholder) and we will respond within 30 days.
 
 ## 8. Security
@@ -63,4 +63,4 @@ collect their data.
 Material changes will be announced in-app, and this page updated.
 
 ## 11. Contact
-privacy@route2go.example — placeholder, replace before launch.
+route2go1@gmail.com — placeholder, replace before launch.
