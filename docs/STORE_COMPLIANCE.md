@@ -34,8 +34,11 @@ matching Section 3.3.
 - Firebase Analytics is the only analytics SDK. `firebase_analytics` is linked.
 - **ATT**: iOS builds using the IDFA must call
   `requestTrackingAuthorization` before any analytics collection, with the
-  `NSUserTrackingUsageDescription` string above. 🟡 Wire the ATT prompt at first
-  launch (only when the platform requires it) before TestFlight build.
+  `NSUserTrackingUsageDescription` string above. ✅ `TrackingPermissionService`
+  (`lib/core/notifications/tracking_permission_service.dart`) requests ATT at
+  first launch and disables analytics unless the user authorizes tracking
+  (no-op on Android). The ATT prompt now runs at runtime before TestFlight
+  build.
 - **Analytics opt-out is enforced in code**: `ProfileNotifier` calls
   `FirebaseAnalytics.setAnalyticsCollectionEnabled(false)` the moment the user
   toggles it in Settings, and re-applies the persisted value at app start
@@ -98,10 +101,16 @@ Answers to the Play Data Safety form. 🟡 Fill these in the Play Console.
 3. Real routing provider (or keep the mock provider off for release).
 4. Legal docs finalised (replace `route2go.example` placeholders in
    `apps/mobile/assets/docs/*.md` and re-run the build so the in-app links match).
+   ✅ Contact/address now filled (route2go1@gmail.com, Bengaluru 560076);
+   🟡 still needs a qualified legal review of the final drafts.
 5. Terms + Privacy linked in-app (Settings screen) and store.
-6. Release signing: `android/app/build.gradle.kts` currently signs release with
-   debug keys — replace with a real keystore before publishing.
+6. Release signing: `android/app/build.gradle.kts` reads `android/key.properties`
+   when present and falls back to debug keys otherwise. 🟡 Generate a real
+   keystore + key.properties before publishing (see
+   `apps/mobile/android/key.properties.template`).
 7. `flutter analyze` clean, `flutter test` green, plus the RLS + EF test suites.
+8. iOS `DEVELOPMENT_TEAM`: not yet set in the Xcode project — add your Apple
+   Team ID before `flutter build ipa` (release blocker).
 
 ---
 
@@ -148,9 +157,11 @@ admin screens both gate privileged writes on `'super_admin'` (fixed to match).
 
 ## 7. Known gaps (honest)
 
-- ATT prompt not yet invoked at runtime (declared, not requested) — Section 2 above.
-- Release signing uses debug keys — must be replaced.
-- Legal docs are drafts with placeholder contact emails.
+- ✅ ATT prompt now invoked at runtime (gates analytics on user choice).
+- 🟡 Release signing falls back to debug keys until `android/key.properties`
+  exists; iOS `DEVELOPMENT_TEAM` unset — both are store-submission blockers.
+- 🟡 Legal docs are comprehensive drafts with real contact details but still
+  require a qualified legal review.
 - Store screenshots and metadata not yet produced.
 - Background-location runtime handling verified in code; device testing of the
   full Live Trip flow still recommended on a physical device.
