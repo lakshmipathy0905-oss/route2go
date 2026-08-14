@@ -54,10 +54,12 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Text('Frequently asked', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Frequently asked',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.md),
             if (_faqsLoading)
-              const Text('Loading FAQs…', style: TextStyle(color: AppColors.textSecondary))
+              const Text('Loading FAQs…',
+                  style: TextStyle(color: AppColors.textSecondary))
             else if (_faqs == null || _faqs!.isEmpty)
               const Text('No FAQs yet — contact us below.',
                   style: TextStyle(color: AppColors.textSecondary))
@@ -78,7 +80,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                 const SizedBox(height: AppSpacing.sm),
               ],
             const SizedBox(height: AppSpacing.xl),
-            Text("Can't find an answer?", style: Theme.of(context).textTheme.headlineSmall),
+            Text("Can't find an answer?",
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _subjectCtrl,
@@ -88,7 +91,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
             TextField(
               controller: _messageCtrl,
               maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Message', alignLabelWithHint: true),
+              decoration: const InputDecoration(
+                  labelText: 'Message', alignLabelWithHint: true),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
@@ -100,10 +104,12 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                   style: TextStyle(color: AppColors.success)),
             ],
             const SizedBox(height: AppSpacing.md),
-            ElevatedButton(onPressed: _submit, child: const Text('Send message')),
+            ElevatedButton(
+                onPressed: _submit, child: const Text('Send message')),
             const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(
-              onPressed: () => launchUrl(Uri(scheme: 'mailto', path: 'support@route2go.example')),
+              onPressed: () => launchUrl(
+                  Uri(scheme: 'mailto', path: 'support@route2go.example')),
               icon: const Icon(Icons.mail_outline, size: 18),
               label: const Text('Email support@route2go.example'),
             ),
@@ -130,14 +136,19 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
       _sent = false;
     });
     try {
-      await ref.read(supportRepositoryProvider).openTicket(subject: subject, message: message);
+      await ref
+          .read(supportRepositoryProvider)
+          .openTicket(subject: subject, message: message);
       if (mounted) {
         setState(() => _sent = true);
         _subjectCtrl.clear();
         _messageCtrl.clear();
       }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not send your message. Please try again.');
+      if (mounted) {
+        setState(
+            () => _error = 'Could not send your message. Please try again.');
+      }
     }
   }
 }

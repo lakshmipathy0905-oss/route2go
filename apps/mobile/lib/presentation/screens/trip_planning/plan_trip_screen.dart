@@ -37,7 +37,8 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillDefaultVehicle());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _prefillDefaultVehicle());
   }
 
   void _prefillDefaultVehicle() {
@@ -119,7 +120,8 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
                   color: AppColors.error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
-                child: Text(_formError!, style: const TextStyle(color: AppColors.error)),
+                child: Text(_formError!,
+                    style: const TextStyle(color: AppColors.error)),
               ),
               const SizedBox(height: AppSpacing.lg),
             ],
@@ -158,7 +160,8 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
               onSelectionChanged: (s) => setState(() => _tripType = s.first),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text('Vehicle & fuel', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Vehicle & fuel',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
               initialValue: _fuelType,
@@ -180,7 +183,8 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _mileageCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: 'Mileage (km/l)',
                 helperText: VehicleRanges.describe(_fuelType),
@@ -189,24 +193,32 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _fuelPriceCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Fuel price per litre (₹) — blank uses the latest known price',
+                labelText:
+                    'Fuel price per litre (₹) — blank uses the latest known price',
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text('Budget & travellers', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Budget & travellers',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _budgetCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Total trip budget (₹) — optional'),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                  labelText: 'Total trip budget (₹) — optional'),
             ),
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<int>(
               initialValue: _travellers,
               decoration: const InputDecoration(labelText: 'Travellers'),
-              items: List.generate(10, (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}'))),
+              items: List.generate(
+                  10,
+                  (i) =>
+                      DropdownMenuItem(value: i + 1, child: Text('${i + 1}'))),
               onChanged: (v) => setState(() => _travellers = v ?? 1),
             ),
             const SizedBox(height: AppSpacing.xxl),
@@ -242,26 +254,36 @@ class _PlanTripScreenState extends ConsumerState<PlanTripScreen> {
     setState(() => _formError = null);
 
     if (_origin == null || _destination == null) {
-      setState(() => _formError = 'Choose both a starting point and a destination on the map.');
+      setState(() => _formError =
+          'Choose both a starting point and a destination on the map.');
       return;
     }
-    if (_origin!.lat == _destination!.lat && _origin!.lng == _destination!.lng) {
-      setState(() => _formError = 'Origin and destination cannot be the same place.');
+    if (_origin!.lat == _destination!.lat &&
+        _origin!.lng == _destination!.lng) {
+      setState(() =>
+          _formError = 'Origin and destination cannot be the same place.');
       return;
     }
 
     final mileageText = _mileageCtrl.text.trim();
     final mileage = double.tryParse(mileageText);
     if (mileageText.isNotEmpty && mileage == null) {
-      setState(() => _formError = 'Mileage must be a number. ${VehicleRanges.describe(_fuelType)}');
+      setState(() => _formError =
+          'Mileage must be a number. ${VehicleRanges.describe(_fuelType)}');
       return;
     }
-    if (mileage != null && _fuelType != 'ev' && !(VehicleRanges.rangeFor(_fuelType)?.contains(mileage) ?? true)) {
-      setState(() => _formError = 'That mileage looks unrealistic. ${VehicleRanges.describe(_fuelType)}');
+    if (mileage != null &&
+        _fuelType != 'ev' &&
+        !(VehicleRanges.rangeFor(_fuelType)?.contains(mileage) ?? true)) {
+      setState(() => _formError =
+          'That mileage looks unrealistic. ${VehicleRanges.describe(_fuelType)}');
       return;
     }
-    if (_fuelType == 'ev' && mileage != null && !VehicleRanges.evEfficiency.contains(mileage)) {
-      setState(() => _formError = 'EV efficiency looks unrealistic (range 0.05–0.50 kWh/km).');
+    if (_fuelType == 'ev' &&
+        mileage != null &&
+        !VehicleRanges.evEfficiency.contains(mileage)) {
+      setState(() => _formError =
+          'EV efficiency looks unrealistic (range 0.05–0.50 kWh/km).');
       return;
     }
 
@@ -313,7 +335,10 @@ class _LocationField extends StatelessWidget {
           hintText: hint,
           prefixIcon: Icon(icon, color: AppColors.primary),
           suffixIcon: value != null
-              ? IconButton(icon: const Icon(Icons.clear, size: 20), tooltip: 'Clear', onPressed: onClear)
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  tooltip: 'Clear',
+                  onPressed: onClear)
               : null,
         ),
         child: value != null

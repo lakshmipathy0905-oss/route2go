@@ -19,7 +19,8 @@ class SupportRepository extends BaseRepository {
   }
 
   Future<List<Map<String, dynamic>>> faqs() async {
-    final res = await _apiClient.get('/support', queryParameters: {'faqs': '1'});
+    final res =
+        await _apiClient.get('/support', queryParameters: {'faqs': '1'});
     final data = res['data'];
     if (data is List) {
       return data.whereType<Map<String, dynamic>>().toList();

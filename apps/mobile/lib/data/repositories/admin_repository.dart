@@ -208,7 +208,8 @@ class AdminRepository extends BaseRepository {
   }
 
   Future<void> setFlag(String key, bool enabled) async {
-    await _apiClient.patch('/admin/flags', body: {'key': key, 'enabled': enabled});
+    await _apiClient
+        .patch('/admin/flags', body: {'key': key, 'enabled': enabled});
   }
 
   Future<List<SupportTicket>> support({String? status}) async {
@@ -219,11 +220,13 @@ class AdminRepository extends BaseRepository {
   }
 
   Future<void> updateTicket(String ticketId, String status) async {
-    await _apiClient.patch('/admin/support', body: {'ticket_id': ticketId, 'status': status});
+    await _apiClient.patch('/admin/support',
+        body: {'ticket_id': ticketId, 'status': status});
   }
 
   Future<AffiliateSummary> affiliate({int days = 30}) async {
-    final res = await _apiClient.get('/admin/affiliate', queryParameters: {'days': '$days'});
+    final res = await _apiClient
+        .get('/admin/affiliate', queryParameters: {'days': '$days'});
     return parseObject(res, AffiliateSummary.fromJson);
   }
 

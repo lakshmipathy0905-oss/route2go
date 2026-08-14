@@ -18,7 +18,8 @@ class DeleteAccountScreen extends ConsumerStatefulWidget {
   const DeleteAccountScreen({super.key});
 
   @override
-  ConsumerState<DeleteAccountScreen> createState() => _DeleteAccountScreenState();
+  ConsumerState<DeleteAccountScreen> createState() =>
+      _DeleteAccountScreenState();
 }
 
 class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
@@ -33,7 +34,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            const Icon(Icons.warning_amber_rounded, size: 48, color: AppColors.error),
+            const Icon(Icons.warning_amber_rounded,
+                size: 48, color: AppColors.error),
             const SizedBox(height: AppSpacing.md),
             Text(
               'This permanently deletes your Route2Go data and sign-in.',
@@ -48,7 +50,10 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
             const SizedBox(height: AppSpacing.md),
             Text(
               'Booking details on partner sites (where you paid a stay provider) are not controlled by Route2Go and will remain on the partner’s records.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
@@ -71,7 +76,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete your account?'),
-        content: const Text('This cannot be undone. All your Route2Go data will be permanently removed.'),
+        content: const Text(
+            'This cannot be undone. All your Route2Go data will be permanently removed.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -141,7 +147,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (password == null || password.isEmpty || !mounted) {
         throw const FormatException('password cancelled');
       }
-      final credential = EmailAuthProvider.credential(email: user.email!, password: password);
+      final credential =
+          EmailAuthProvider.credential(email: user.email!, password: password);
       await user.reauthenticateWithCredential(credential);
       await user.delete();
     }
@@ -160,7 +167,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           decoration: const InputDecoration(labelText: 'Password'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(context, ctrl.text),
             child: const Text('Continue'),
@@ -195,9 +204,11 @@ class _DeleteBullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle_outline, size: 20, color: AppColors.textSecondary),
+          const Icon(Icons.check_circle_outline,
+              size: 20, color: AppColors.textSecondary),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
+          Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
         ],
       ),
     );

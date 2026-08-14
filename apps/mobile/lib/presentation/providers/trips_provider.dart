@@ -15,12 +15,15 @@ class TripsNotifier extends AsyncNotifier<List<TripSummary>> {
 
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => ref.read(tripRepositoryProvider).listTrips());
+    state = await AsyncValue.guard(
+        () => ref.read(tripRepositoryProvider).listTrips());
   }
 
   Future<void> rename(String tripId, String newLabel) async {
     state = await AsyncValue.guard(() async {
-      await ref.read(tripRepositoryProvider).renameTrip(tripId: tripId, newLabel: newLabel);
+      await ref
+          .read(tripRepositoryProvider)
+          .renameTrip(tripId: tripId, newLabel: newLabel);
       return ref.read(tripRepositoryProvider).listTrips();
     });
   }

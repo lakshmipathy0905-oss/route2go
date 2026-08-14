@@ -14,7 +14,8 @@ class SearchRepository extends BaseRepository {
   Future<List<SearchResult>> search(String query) async {
     final trimmed = query.trim();
     if (trimmed.length < 2) return const [];
-    final res = await _apiClient.get('/search', queryParameters: {'q': trimmed});
+    final res =
+        await _apiClient.get('/search', queryParameters: {'q': trimmed});
     return parseList(res, SearchResult.fromJson);
   }
 

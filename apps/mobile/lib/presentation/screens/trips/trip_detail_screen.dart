@@ -40,18 +40,21 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               }
             }
             if (trip == null) {
-              return const AppEmptyState(message: 'This trip is no longer available.');
+              return const AppEmptyState(
+                  message: 'This trip is no longer available.');
             }
             final t = trip;
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
-                Text(t.originLabel, style: Theme.of(context).textTheme.headlineLarge),
+                Text(t.originLabel,
+                    style: Theme.of(context).textTheme.headlineLarge),
                 Row(
                   children: [
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                      child: Icon(Icons.arrow_downward, size: 16, color: AppColors.textSecondary),
+                      child: Icon(Icons.arrow_downward,
+                          size: 16, color: AppColors.textSecondary),
                     ),
                     Expanded(
                       child: Text(
@@ -75,15 +78,20 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Shareable summary', style: Theme.of(context).textTheme.headlineSmall),
+                        Text('Shareable summary',
+                            style: Theme.of(context).textTheme.headlineSmall),
                         const SizedBox(height: AppSpacing.sm),
-                        _line(context, 'Route', '${t.originLabel} → ${t.destinationLabel}'),
+                        _line(context, 'Route',
+                            '${t.originLabel} → ${t.destinationLabel}'),
                         if (t.bestRouteCost != null)
-                          _line(context, 'Est. total', formatCurrency(t.bestRouteCost!)),
+                          _line(context, 'Est. total',
+                              formatCurrency(t.bestRouteCost!)),
                         if (t.bestDurationMin != null)
-                          _line(context, 'Est. time', formatDuration(t.bestDurationMin!)),
+                          _line(context, 'Est. time',
+                              formatDuration(t.bestDurationMin!)),
                         if (t.budgetTotal != null)
-                          _line(context, 'Budget', formatCurrency(t.budgetTotal!)),
+                          _line(context, 'Budget',
+                              formatCurrency(t.budgetTotal!)),
                         const SizedBox(height: AppSpacing.md),
                         FilledButton.icon(
                           onPressed: () => _share(context, t),
@@ -96,7 +104,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 OutlinedButton.icon(
-                  onPressed: () => context.push(AppRoutes.tripExpensesOf(widget.id)),
+                  onPressed: () =>
+                      context.push(AppRoutes.tripExpensesOf(widget.id)),
                   icon: const Icon(Icons.receipt_long_outlined, size: 18),
                   label: const Text('Expense tracker'),
                 ),
@@ -122,10 +131,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          await ref.read(tripsProvider.notifier).duplicate(t.id);
+                          await ref
+                              .read(tripsProvider.notifier)
+                              .duplicate(t.id);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(const SnackBar(content: Text('Trip duplicated.')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Trip duplicated.')));
                           }
                         },
                         icon: const Icon(Icons.copy_outlined, size: 16),
@@ -137,8 +149,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 const SizedBox(height: AppSpacing.md),
                 TextButton.icon(
                   onPressed: () => _delete(context, t),
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                  label: const Text('Delete trip', style: TextStyle(color: AppColors.error)),
+                  icon:
+                      const Icon(Icons.delete_outline, color: AppColors.error),
+                  label: const Text('Delete trip',
+                      style: TextStyle(color: AppColors.error)),
                 ),
               ],
             );
@@ -159,7 +173,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -169,7 +186,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -199,15 +219,20 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           decoration: const InputDecoration(labelText: 'Trip name'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, ctrl.text.trim()), child: const Text('Save')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+              child: const Text('Save')),
         ],
       ),
     );
     if (name == null || name.isEmpty) return;
     await ref.read(tripsProvider.notifier).rename(trip.id, name);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trip renamed.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Trip renamed.')));
     }
   }
 
@@ -216,9 +241,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete trip?'),
-        content: Text('"${trip.originLabel}" will be removed with its routes and expenses.'),
+        content: Text(
+            '"${trip.originLabel}" will be removed with its routes and expenses.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(context, true),
@@ -235,4 +263,5 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 }
 
 // ignore: non_constant_identifier_names
-String tripLabelSafe(TripSummary t) => '${t.originLabel} → ${t.destinationLabel}';
+String tripLabelSafe(TripSummary t) =>
+    '${t.originLabel} → ${t.destinationLabel}';

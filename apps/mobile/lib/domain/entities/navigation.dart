@@ -16,7 +16,8 @@ class NavigationStep {
   });
 
   final String instruction;
-  final String maneuverType; // depart | turn | new name | continue | arrive | roundabout | ...
+  final String
+      maneuverType; // depart | turn | new name | continue | arrive | roundabout | ...
   final String? modifier; // left | right | straight | slight left | uturn | ...
   final String? name; // road name when the provider supplies one
   final double distanceKm;
@@ -110,7 +111,8 @@ class RouteProgress {
   final double nearestLng;
 
   /// Estimated arrival time given [now].
-  DateTime eta({required DateTime now}) => now.add(Duration(minutes: remainingDurationMin));
+  DateTime eta({required DateTime now}) =>
+      now.add(Duration(minutes: remainingDurationMin));
 }
 
 /// Lifecycle state of an in-app navigation session.
@@ -134,5 +136,7 @@ extension NavigationStatusX on NavigationStatus {
       this == NavigationStatus.offRoute ||
       this == NavigationStatus.paused;
 
-  bool get isErrorLike => this == NavigationStatus.error || this == NavigationStatus.locationUnavailable;
+  bool get isErrorLike =>
+      this == NavigationStatus.error ||
+      this == NavigationStatus.locationUnavailable;
 }

@@ -44,43 +44,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ListTile(
                     leading: const Icon(Icons.person_outline),
                     title: const Text('Profile'),
-                    subtitle: Text(profile?.name ?? 'Edit name, home location, travel preferences'),
+                    subtitle: Text(profile?.name ??
+                        'Edit name, home location, travel preferences'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _requireLogin(context, ref, () => context.push(AppRoutes.profileEdit)),
+                    onTap: () => _requireLogin(context, ref,
+                        () => context.push(AppRoutes.profileEdit)),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.notifications_none),
                     title: const Text('Notifications'),
-                    subtitle: const Text('Alert categories and marketing opt-out'),
+                    subtitle:
+                        const Text('Alert categories and marketing opt-out'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _requireLogin(context, ref, () => context.push(AppRoutes.notifications)),
+                    onTap: () => _requireLogin(context, ref,
+                        () => context.push(AppRoutes.notifications)),
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: const Icon(Icons.shield_outlined, color: AppColors.primary),
+                    leading: const Icon(Icons.shield_outlined,
+                        color: AppColors.primary),
                     title: const Text('Admin'),
                     subtitle: const Text('Dashboard, flags, audit, support'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _requireLogin(context, ref, () => context.push(AppRoutes.admin)),
+                    onTap: () => _requireLogin(
+                        context, ref, () => context.push(AppRoutes.admin)),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.favorite_outline),
                     title: const Text('Favorites'),
-                    subtitle: const Text('Saved places, hotels, routes and trips'),
+                    subtitle:
+                        const Text('Saved places, hotels, routes and trips'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _requireLogin(context, ref, () => context.push(AppRoutes.favorites)),
+                    onTap: () => _requireLogin(
+                        context, ref, () => context.push(AppRoutes.favorites)),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.security_outlined),
                     title: const Text('Analytics'),
-                    subtitle: Text(profile?.analyticsOptOut == true ? 'Analytics opt-out is ON' : 'Analytics opt-out is OFF'),
+                    subtitle: Text(profile?.analyticsOptOut == true
+                        ? 'Analytics opt-out is ON'
+                        : 'Analytics opt-out is OFF'),
                     trailing: Switch(
                       value: profile?.analyticsOptOut != true,
                       onChanged: isLoggedIn
-                          ? (v) => ref.read(profileProvider.notifier).setAnalyticsOptOut(!v)
+                          ? (v) => ref
+                              .read(profileProvider.notifier)
+                              .setAnalyticsOptOut(!v)
                           : null,
                     ),
                   ),
@@ -113,11 +125,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: const Icon(Icons.delete_forever_outlined, color: AppColors.error),
+                    leading: const Icon(Icons.delete_forever_outlined,
+                        color: AppColors.error),
                     title: const Text('Delete account'),
                     subtitle: const Text('Permanently removes your data'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _requireLogin(context, ref, () => context.push(AppRoutes.deleteAccount)),
+                    onTap: () => _requireLogin(context, ref,
+                        () => context.push(AppRoutes.deleteAccount)),
                   ),
                 ],
               ),
@@ -126,7 +140,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Center(
               child: Text(
                 'Route2Go v${_version ?? '…'}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
             ),
           ],

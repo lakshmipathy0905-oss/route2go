@@ -9,7 +9,8 @@ class ExpenseRepository extends BaseRepository {
   final ApiClient _apiClient;
 
   Future<List<Expense>> listForTrip(String tripId) async {
-    final res = await _apiClient.get('/expenses', queryParameters: {'trip_id': tripId});
+    final res =
+        await _apiClient.get('/expenses', queryParameters: {'trip_id': tripId});
     return parseList(res, Expense.fromJson);
   }
 
@@ -58,7 +59,8 @@ class ExpenseRepository extends BaseRepository {
   }
 
   Future<void> deleteExpense(String expenseId) async {
-    await _apiClient.delete('/expenses', queryParameters: {'expense_id': expenseId});
+    await _apiClient
+        .delete('/expenses', queryParameters: {'expense_id': expenseId});
   }
 }
 

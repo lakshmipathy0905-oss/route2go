@@ -27,7 +27,8 @@ class PermissionExplainer extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
       ),
       builder: (context) => this,
     );
@@ -44,7 +45,9 @@ class PermissionExplainer extends StatelessWidget {
           children: [
             Icon(icon, size: 48, color: AppColors.primary),
             const SizedBox(height: AppSpacing.md),
-            Text(title, textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.lg),
             ...reasons.map(
               (r) => Padding(
@@ -52,9 +55,12 @@ class PermissionExplainer extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.check_circle_outline, size: 18, color: AppColors.accent),
+                    const Icon(Icons.check_circle_outline,
+                        size: 18, color: AppColors.accent),
                     const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: Text(r, style: Theme.of(context).textTheme.bodyLarge)),
+                    Expanded(
+                        child: Text(r,
+                            style: Theme.of(context).textTheme.bodyLarge)),
                   ],
                 ),
               ),

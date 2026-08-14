@@ -18,7 +18,8 @@ class ExpenseTrackerScreen extends ConsumerStatefulWidget {
   final String tripId;
 
   @override
-  ConsumerState<ExpenseTrackerScreen> createState() => _ExpenseTrackerScreenState();
+  ConsumerState<ExpenseTrackerScreen> createState() =>
+      _ExpenseTrackerScreenState();
 }
 
 class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
@@ -44,34 +45,40 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
             IconButton(
               icon: const Icon(Icons.add),
               tooltip: 'Add expense',
-              onPressed: () => context.push(AppRoutes.expenseAddOf(widget.tripId)),
+              onPressed: () =>
+                  context.push(AppRoutes.expenseAddOf(widget.tripId)),
             ),
         ],
       ),
       body: SafeArea(
         child: isLoggedIn
             ? ref.watch(expensesProvider).when(
-                loading: () => const AppLoadingState(message: 'Loading expenses…'),
-                error: (err, st) => AppErrorState(
-                  error: err,
-                  onRetry: () => ref.read(expensesProvider.notifier).load(widget.tripId),
-                ),
-                data: (expenses) => _ExpensesList(
-                  expenses: expenses,
-                  estimateOnly: _estimateOnly,
-                  onToggleEstimateOnly: (v) => setState(() => _estimateOnly = v),
-                  onRecordActual: (e) => _recordActual(e),
-                  onDelete: (e) => _delete(e),
-                  onAdd: () => context.push(AppRoutes.expenseAddOf(widget.tripId)),
-                ),
-              )
+                  loading: () =>
+                      const AppLoadingState(message: 'Loading expenses…'),
+                  error: (err, st) => AppErrorState(
+                    error: err,
+                    onRetry: () =>
+                        ref.read(expensesProvider.notifier).load(widget.tripId),
+                  ),
+                  data: (expenses) => _ExpensesList(
+                    expenses: expenses,
+                    estimateOnly: _estimateOnly,
+                    onToggleEstimateOnly: (v) =>
+                        setState(() => _estimateOnly = v),
+                    onRecordActual: (e) => _recordActual(e),
+                    onDelete: (e) => _delete(e),
+                    onAdd: () =>
+                        context.push(AppRoutes.expenseAddOf(widget.tripId)),
+                  ),
+                )
             : _GuestExpenseView(onSignIn: () => showGuestGate(context)),
       ),
     );
   }
 
   Future<void> _recordActual(Expense e) async {
-    final ctrl = TextEditingController(text: e.estimatedAmount.toStringAsFixed(0));
+    final ctrl =
+        TextEditingController(text: e.estimatedAmount.toStringAsFixed(0));
     final value = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
@@ -83,9 +90,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
           decoration: const InputDecoration(labelText: 'Actual amount (₹)'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           FilledButton(
-            onPressed: () => Navigator.pop(context, double.tryParse(ctrl.text.trim())),
+            onPressed: () =>
+                Navigator.pop(context, double.tryParse(ctrl.text.trim())),
             child: const Text('Save'),
           ),
         ],
@@ -100,9 +110,12 @@ class _ExpenseTrackerScreenState extends ConsumerState<ExpenseTrackerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete expense?'),
-        content: Text('${e.description ?? e.category} — this cannot be undone.'),
+        content:
+            Text('${e.description ?? e.category} — this cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(context, true),
@@ -126,11 +139,14 @@ class _GuestExpenseView extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.receipt_long_outlined, size: 44, color: AppColors.textSecondary),
+        const Icon(Icons.receipt_long_outlined,
+            size: 44, color: AppColors.textSecondary),
         const SizedBox(height: AppSpacing.md),
         const Text('Track expenses against a saved trip.'),
         const SizedBox(height: AppSpacing.lg),
-        ElevatedButton(onPressed: onSignIn, child: const Text('Sign in to track expenses')),
+        ElevatedButton(
+            onPressed: onSignIn,
+            child: const Text('Sign in to track expenses')),
       ],
     );
   }
@@ -157,7 +173,8 @@ class _ExpensesList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (expenses.isEmpty) {
       return const AppEmptyState(
-        message: 'No expenses yet — add fuel, toll, stay or food entries as you go.',
+        message:
+            'No expenses yet — add fuel, toll, stay or food entries as you go.',
         icon: Icons.receipt_long_outlined,
       );
     }
@@ -178,7 +195,8 @@ class _ExpensesList extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text('Total ${estimateOnly ? 'estimated' : 'actual'}',
+                      child: Text(
+                          'Total ${estimateOnly ? 'estimated' : 'actual'}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyLarge),
@@ -188,19 +206,24 @@ class _ExpensesList extends StatelessWidget {
                       child: Text(formatCurrency(total),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.primary)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(color: AppColors.primary)),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text('Categories: ${categories.entries.map((e) => '${e.key} ${formatCurrency(e.value)}').join(' · ')}',
+                Text(
+                    'Categories: ${categories.entries.map((e) => '${e.key} ${formatCurrency(e.value)}').join(' · ')}',
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: AppSpacing.md),
                 SwitchListTile(
                   value: estimateOnly,
                   onChanged: onToggleEstimateOnly,
                   title: const Text('Show estimates'),
-                  subtitle: const Text('Off: use recorded actual amounts where available'),
+                  subtitle: const Text(
+                      'Off: use recorded actual amounts where available'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ],
@@ -244,7 +267,10 @@ class _ExpensesList extends StatelessWidget {
               ),
             )),
         const SizedBox(height: AppSpacing.md),
-        FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add expense')),
+        FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Add expense')),
       ],
     );
   }
@@ -267,14 +293,17 @@ class _ExpensesList extends StatelessWidget {
   double _total(List<Expense> list) {
     return list.fold<double>(
       0,
-      (sum, e) => sum + (estimateOnly || !e.hasActual ? e.estimatedAmount : e.actualAmount!),
+      (sum, e) =>
+          sum +
+          (estimateOnly || !e.hasActual ? e.estimatedAmount : e.actualAmount!),
     );
   }
 
   Map<String, double> _byCategory(List<Expense> list) {
     final map = <String, double>{};
     for (final e in list) {
-      final v = estimateOnly || !e.hasActual ? e.estimatedAmount : e.actualAmount!;
+      final v =
+          estimateOnly || !e.hasActual ? e.estimatedAmount : e.actualAmount!;
       map[e.category] = (map[e.category] ?? 0) + v;
     }
     return map;

@@ -20,7 +20,8 @@ class FavoritesNotifier extends AsyncNotifier<List<SearchResult>> {
   Future<void> refresh() => load(kind: _kind);
 }
 
-final favoritesProvider = AsyncNotifierProvider<FavoritesNotifier, List<SearchResult>>(
+final favoritesProvider =
+    AsyncNotifierProvider<FavoritesNotifier, List<SearchResult>>(
   FavoritesNotifier.new,
 );
 
@@ -47,7 +48,8 @@ class SearchNotifier extends AsyncNotifier<List<SearchResult>> {
   }
 }
 
-final searchProvider = AsyncNotifierProvider<SearchNotifier, List<SearchResult>>(
+final searchProvider =
+    AsyncNotifierProvider<SearchNotifier, List<SearchResult>>(
   SearchNotifier.new,
 );
 
@@ -68,6 +70,7 @@ class FeatureFlagsNotifier extends AsyncNotifier<Map<String, bool>> {
   bool isOn(String key) => state.valueOrNull?[key] ?? false;
 }
 
-final featureFlagsProvider = AsyncNotifierProvider<FeatureFlagsNotifier, Map<String, bool>>(
+final featureFlagsProvider =
+    AsyncNotifierProvider<FeatureFlagsNotifier, Map<String, bool>>(
   FeatureFlagsNotifier.new,
 );

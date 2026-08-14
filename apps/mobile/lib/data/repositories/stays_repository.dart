@@ -52,11 +52,14 @@ class StaysRepository extends BaseRepository {
       'origin_lng': '$originLng',
       'dest_lat': '$destLat',
       'dest_lng': '$destLng',
-      if (filters.maxPricePerNight != null) 'max_price': '${filters.maxPricePerNight}',
+      if (filters.maxPricePerNight != null)
+        'max_price': '${filters.maxPricePerNight}',
       if (filters.minRating != null) 'min_rating': '${filters.minRating}',
-      if (filters.maxDistanceKm != null) 'max_distance_km': '${filters.maxDistanceKm}',
+      if (filters.maxDistanceKm != null)
+        'max_distance_km': '${filters.maxDistanceKm}',
       if (filters.roomType != null) 'room_type': filters.roomType!,
-      if (filters.amenities.isNotEmpty) 'amenities': filters.amenities.join(','),
+      if (filters.amenities.isNotEmpty)
+        'amenities': filters.amenities.join(','),
     });
     return parseList(res, Stay.fromJson);
   }

@@ -53,8 +53,7 @@ class ItineraryPlan {
   final List<ItineraryDay> days;
   final int durationDays;
 
-  double get totalCost =>
-      days.fold(0, (sum, d) => sum + d.totalCost);
+  double get totalCost => days.fold(0, (sum, d) => sum + d.totalCost);
 
   factory ItineraryPlan.fromJson(Map<String, dynamic> json) {
     return ItineraryPlan(

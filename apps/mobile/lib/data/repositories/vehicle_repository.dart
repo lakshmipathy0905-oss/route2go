@@ -29,8 +29,10 @@ class VehicleRepository extends BaseRepository {
         'fuel_type': fuelType,
         if (mileageKmpl != null) 'mileage_kmpl': mileageKmpl,
         if (evBatteryKwh != null) 'ev_battery_kwh': evBatteryKwh,
-        if (evEfficiencyKwhPerKm != null) 'ev_efficiency_kwh_per_km': evEfficiencyKwhPerKm,
-        if (cngMileageKmPerKg != null) 'cng_mileage_km_per_kg': cngMileageKmPerKg,
+        if (evEfficiencyKwhPerKm != null)
+          'ev_efficiency_kwh_per_km': evEfficiencyKwhPerKm,
+        if (cngMileageKmPerKg != null)
+          'cng_mileage_km_per_kg': cngMileageKmPerKg,
         'is_default': isDefault,
       },
     );
@@ -45,7 +47,8 @@ class VehicleRepository extends BaseRepository {
         'label': vehicle.label,
         'fuel_type': vehicle.fuelType,
         if (vehicle.mileageKmpl != null) 'mileage_kmpl': vehicle.mileageKmpl,
-        if (vehicle.evBatteryKwh != null) 'ev_battery_kwh': vehicle.evBatteryKwh,
+        if (vehicle.evBatteryKwh != null)
+          'ev_battery_kwh': vehicle.evBatteryKwh,
         if (vehicle.evEfficiencyKwhPerKm != null)
           'ev_efficiency_kwh_per_km': vehicle.evEfficiencyKwhPerKm,
         if (vehicle.cngMileageKmPerKg != null)
@@ -57,11 +60,13 @@ class VehicleRepository extends BaseRepository {
   }
 
   Future<void> deleteVehicle(String vehicleId) async {
-    await _apiClient.delete('/vehicles', queryParameters: {'vehicle_id': vehicleId});
+    await _apiClient
+        .delete('/vehicles', queryParameters: {'vehicle_id': vehicleId});
   }
 
   Future<void> setDefaultVehicle(String vehicleId) async {
-    await _apiClient.patch('/vehicles', body: {'vehicle_id': vehicleId, 'is_default': true});
+    await _apiClient.patch('/vehicles',
+        body: {'vehicle_id': vehicleId, 'is_default': true});
   }
 }
 

@@ -42,11 +42,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.favorite_outline, size: 44, color: AppColors.textSecondary),
+                  const Icon(Icons.favorite_outline,
+                      size: 44, color: AppColors.textSecondary),
                   const SizedBox(height: AppSpacing.md),
                   const Text('Sign in to keep your favorite places and trips.'),
                   const SizedBox(height: AppSpacing.lg),
-                  ElevatedButton(onPressed: () => showGuestGate(context), child: const Text('Sign in')),
+                  ElevatedButton(
+                      onPressed: () => showGuestGate(context),
+                      child: const Text('Sign in')),
                 ],
               ),
             ),
@@ -64,31 +67,50 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
               height: 52,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg, vertical: 8),
                 children: [
-                  ChoiceChip(label: const Text('All'), selected: _kind == null, onSelected: (_) => _setKind(null)),
+                  ChoiceChip(
+                      label: const Text('All'),
+                      selected: _kind == null,
+                      onSelected: (_) => _setKind(null)),
                   const SizedBox(width: AppSpacing.sm),
-                  ChoiceChip(label: const Text('Places'), selected: _kind == 'place', onSelected: (_) => _setKind('place')),
+                  ChoiceChip(
+                      label: const Text('Places'),
+                      selected: _kind == 'place',
+                      onSelected: (_) => _setKind('place')),
                   const SizedBox(width: AppSpacing.sm),
-                  ChoiceChip(label: const Text('Hotels'), selected: _kind == 'hotel', onSelected: (_) => _setKind('hotel')),
+                  ChoiceChip(
+                      label: const Text('Hotels'),
+                      selected: _kind == 'hotel',
+                      onSelected: (_) => _setKind('hotel')),
                   const SizedBox(width: AppSpacing.sm),
-                  ChoiceChip(label: const Text('Routes'), selected: _kind == 'route', onSelected: (_) => _setKind('route')),
+                  ChoiceChip(
+                      label: const Text('Routes'),
+                      selected: _kind == 'route',
+                      onSelected: (_) => _setKind('route')),
                   const SizedBox(width: AppSpacing.sm),
-                  ChoiceChip(label: const Text('Trips'), selected: _kind == 'trip', onSelected: (_) => _setKind('trip')),
+                  ChoiceChip(
+                      label: const Text('Trips'),
+                      selected: _kind == 'trip',
+                      onSelected: (_) => _setKind('trip')),
                 ],
               ),
             ),
             Expanded(
               child: ref.watch(favoritesProvider).when(
-                    loading: () => const AppLoadingState(message: 'Loading favorites…'),
+                    loading: () =>
+                        const AppLoadingState(message: 'Loading favorites…'),
                     error: (err, st) => AppErrorState(
                       error: err,
-                      onRetry: () => ref.read(favoritesProvider.notifier).refresh(),
+                      onRetry: () =>
+                          ref.read(favoritesProvider.notifier).refresh(),
                     ),
                     data: (items) {
                       if (items.isEmpty) {
                         return const AppEmptyState(
-                          message: 'Nothing saved yet — bookmark places and trips as you plan.',
+                          message:
+                              'Nothing saved yet — bookmark places and trips as you plan.',
                           icon: Icons.favorite_border,
                         );
                       }
@@ -98,9 +120,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         itemBuilder: (context, i) {
                           final f = items[i];
                           return ListTile(
-                            leading: Icon(_iconFor(f.kind), color: AppColors.primary),
+                            leading: Icon(_iconFor(f.kind),
+                                color: AppColors.primary),
                             title: Text(f.title),
-                            subtitle: Text(f.subtitle, style: Theme.of(context).textTheme.bodySmall),
+                            subtitle: Text(f.subtitle,
+                                style: Theme.of(context).textTheme.bodySmall),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
                               if (f.kind == 'place') {

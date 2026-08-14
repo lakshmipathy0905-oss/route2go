@@ -88,9 +88,11 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(navigationProvider.select((s) => s.status));
-    final destination = ref.watch(navigationProvider.select((s) => s.destination));
+    final destination =
+        ref.watch(navigationProvider.select((s) => s.destination));
     final offline = ref.watch(navigationProvider.select((s) => s.offline));
-    final voiceMuted = ref.watch(navigationProvider.select((s) => s.voiceMuted));
+    final voiceMuted =
+        ref.watch(navigationProvider.select((s) => s.voiceMuted));
     final live = ref.watch(liveTripProvider);
 
     // No active session yet — safe empty state (should not normally be hit
@@ -98,7 +100,8 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
     if (destination == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Live Trip')),
-        body: const AppEmptyState(message: 'No active trip. Start one from your plan.'),
+        body: const AppEmptyState(
+            message: 'No active trip. Start one from your plan.'),
       );
     }
 
@@ -131,10 +134,12 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
                         margin: EdgeInsets.zero,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm),
                           child: Row(
                             children: [
-                              const Icon(Icons.flag, color: AppColors.error, size: 18),
+                              const Icon(Icons.flag,
+                                  color: AppColors.error, size: 18),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
@@ -177,7 +182,8 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
           // --- Status banners (off-route / recalculating / location) ---
           if (status == NavigationStatus.offRoute ||
               status == NavigationStatus.recalculating) ...[
-            const Positioned(top: 250, left: 0, right: 0, child: _OffRouteBanner()),
+            const Positioned(
+                top: 250, left: 0, right: 0, child: _OffRouteBanner()),
           ],
 
           // --- RECENTER + controls ---
@@ -214,7 +220,8 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => _pickStop(title: 'Change destination'),
+                            onPressed: () =>
+                                _pickStop(title: 'Change destination'),
                             icon: const Icon(Icons.edit_location_alt_outlined),
                             label: const Text('Change dest'),
                           ),
@@ -226,16 +233,21 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => ref.read(navigationProvider.notifier).toggleVoice(),
-                            icon: Icon(voiceMuted ? Icons.volume_off : Icons.volume_up),
+                            onPressed: () => ref
+                                .read(navigationProvider.notifier)
+                                .toggleVoice(),
+                            icon: Icon(voiceMuted
+                                ? Icons.volume_off
+                                : Icons.volume_up),
                             label: Text(voiceMuted ? 'Unmute' : 'Mute'),
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () =>
-                                ref.read(navigationProvider.notifier).recalculate(),
+                            onPressed: () => ref
+                                .read(navigationProvider.notifier)
+                                .recalculate(),
                             icon: const Icon(Icons.refresh),
                             label: const Text('Recalc'),
                           ),
@@ -259,11 +271,11 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.flag, size: 64, color: AppColors.success),
+                        const Icon(Icons.flag,
+                            size: 64, color: AppColors.success),
                         const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          'You have arrived.',
-                          style: Theme.of(context).textTheme.headlineLarge),
+                        Text('You have arrived.',
+                            style: Theme.of(context).textTheme.headlineLarge),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           destination.label,
@@ -348,9 +360,11 @@ class _NavMap extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final route = ref.watch(navigationProvider.select((s) => s.route));
     final waypoints = ref.watch(navigationProvider.select((s) => s.waypoints));
-    final destination = ref.watch(navigationProvider.select((s) => s.destination));
+    final destination =
+        ref.watch(navigationProvider.select((s) => s.destination));
     final coords = route?.geometryCoordinates;
-    final initialPosition = ref.read(navigationProvider.select((s) => s.position));
+    final initialPosition =
+        ref.read(navigationProvider.select((s) => s.position));
 
     return FlutterMap(
       mapController: mapController,
@@ -384,7 +398,8 @@ class _NavMap extends ConsumerWidget {
               ),
             ],
           ),
-        _WaypointMarkers(waypoints: waypoints, destination: destination, toLatLng: toLatLng),
+        _WaypointMarkers(
+            waypoints: waypoints, destination: destination, toLatLng: toLatLng),
         _UserMarker(
           mapController: mapController,
           following: following,
@@ -408,7 +423,9 @@ class _WaypointMarkers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (destination == null && waypoints.isEmpty) return const SizedBox.shrink();
+    if (destination == null && waypoints.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final dest = destination;
 
     return MarkerLayer(
@@ -455,7 +472,8 @@ class _UserMarkerState extends ConsumerState<_UserMarker>
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _anim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
     // Interpolate each frame between the last shown and the new GPS reading.
     _anim.addListener(() {
       final from = _from;
@@ -527,7 +545,8 @@ class _UserMarkerState extends ConsumerState<_UserMarker>
           height: 44,
           child: Transform.rotate(
             angle: heading * 3.141592653589793 / 180,
-            child: const Icon(Icons.navigation, size: 40, color: AppColors.info),
+            child:
+                const Icon(Icons.navigation, size: 40, color: AppColors.info),
           ),
         ),
       ],
@@ -544,7 +563,8 @@ class _ManeuverCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final step = ref.watch(navigationProvider.select((s) => s.nextManeuver));
-    final distKm = ref.watch(navigationProvider.select((s) => s.distanceToNextKm));
+    final distKm =
+        ref.watch(navigationProvider.select((s) => s.distanceToNextKm));
     final progress = ref.watch(navigationProvider.select((s) => s.progress));
 
     return Card(
@@ -559,7 +579,8 @@ class _ManeuverCard extends ConsumerWidget {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(AppRadius.card),
               ),
-              child: const Icon(Icons.turn_right, color: Colors.white, size: 32),
+              child:
+                  const Icon(Icons.turn_right, color: Colors.white, size: 32),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -610,10 +631,8 @@ class _ManeuverCard extends ConsumerWidget {
                 children: [
                   Text(
                     distKm > 0 ? formatDistance(distKm) : 'Now',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.primary, fontWeight: FontWeight.w700),
                   ),
                   if (progress != null)
                     Text(
@@ -647,17 +666,17 @@ class _ProgressCard extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Remaining', style: Theme.of(context).textTheme.bodyMedium),
+                Text('Remaining',
+                    style: Theme.of(context).textTheme.bodyMedium),
                 Text(
-                  progress != null
-                      ? formatDistance(progress.remainingKm)
-                      : '…',
+                  progress != null ? formatDistance(progress.remainingKm) : '…',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
@@ -747,7 +766,8 @@ class _OffRouteBanner extends StatelessWidget {
       child: Card(
         color: AppColors.warning.withValues(alpha: 0.15),
         child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.md),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -775,7 +795,8 @@ class _LocationUnavailableOverlay extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.location_off, size: 56, color: AppColors.warning),
+              const Icon(Icons.location_off,
+                  size: 56, color: AppColors.warning),
               const SizedBox(height: AppSpacing.lg),
               Text('Location unavailable',
                   style: Theme.of(context).textTheme.headlineSmall),
@@ -820,7 +841,8 @@ class _NavStopSheetState extends State<_NavStopSheet> {
       return;
     }
     setState(() => _searching = true);
-    final repo = ProviderScope.containerOf(context).read(geocodingRepositoryProvider);
+    final repo =
+        ProviderScope.containerOf(context).read(geocodingRepositoryProvider);
     try {
       final places = await repo.geocode(query);
       if (mounted) setState(() => _results = places);
@@ -882,10 +904,13 @@ class _NavStopSheetState extends State<_NavStopSheet> {
                     itemBuilder: (context, i) {
                       final p = _results[i];
                       return ListTile(
-                        leading: const Icon(Icons.place_outlined, color: AppColors.primary),
-                        title: Text(p.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        leading: const Icon(Icons.place_outlined,
+                            color: AppColors.primary),
+                        title: Text(p.label,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: p.subtitle != null
-                            ? Text(p.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
+                            ? Text(p.subtitle!,
+                                maxLines: 1, overflow: TextOverflow.ellipsis)
                             : null,
                         onTap: () => Navigator.of(context).pop(
                           NavStop(label: p.label, lat: p.lat, lng: p.lng),

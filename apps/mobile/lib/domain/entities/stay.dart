@@ -41,7 +41,8 @@ class Stay {
       lng: (json['lng'] as num).toDouble(),
       pricePerNight: (json['price_per_night'] as num?)?.toDouble(),
       rating: (json['rating'] as num?)?.toDouble(),
-      amenities: (json['amenities'] as List<dynamic>? ?? const []).cast<String>(),
+      amenities:
+          (json['amenities'] as List<dynamic>? ?? const []).cast<String>(),
       partnerId: json['partner_id'] as String?,
       partnerName: json['partner_name'] as String?,
       commission: (json['commission'] as num?)?.toDouble(),
@@ -64,6 +65,7 @@ class Stay {
         if (commission != null) 'commission': commission,
         'is_sponsored': isSponsored,
         if (bookingUrl != null) 'booking_url': bookingUrl,
-        if (distanceFromRouteKm != null) 'distance_from_route_km': distanceFromRouteKm,
+        if (distanceFromRouteKm != null)
+          'distance_from_route_km': distanceFromRouteKm,
       };
 }

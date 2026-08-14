@@ -37,7 +37,8 @@ class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
       appBar: AppBar(title: const Text('Itinerary')),
       body: SafeArea(
         child: state.when(
-          loading: () => const AppLoadingState(message: 'Scheduling your trip…'),
+          loading: () =>
+              const AppLoadingState(message: 'Scheduling your trip…'),
           error: (err, st) => AppErrorState(
             error: err,
             onRetry: () => ref.read(itineraryProvider.notifier).generate(),
@@ -48,7 +49,8 @@ class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
                 children: [
                   const Expanded(
                     child: AppEmptyState(
-                      message: 'Select places and stays first, then generate your itinerary.',
+                      message:
+                          'Select places and stays first, then generate your itinerary.',
                       icon: Icons.calendar_month_outlined,
                     ),
                   ),
@@ -84,7 +86,8 @@ class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
                   height: 48,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                     children: List.generate(plan.days.length, (i) {
                       return Padding(
                         padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -98,10 +101,12 @@ class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
                   child: Row(
                     children: [
-                      HintText('Driving capped at ${ref.read(itineraryProvider.notifier).maxDrivingHoursPerDay.toStringAsFixed(0)} hrs/day.'),
+                      HintText(
+                          'Driving capped at ${ref.read(itineraryProvider.notifier).maxDrivingHoursPerDay.toStringAsFixed(0)} hrs/day.'),
                       const Spacer(),
                       TextButton.icon(
                         onPressed: () async {
@@ -128,11 +133,14 @@ class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
                     itemBuilder: (context, i) {
                       final item = day.items[i];
                       return Card(
-                        key: ValueKey('${day.dayNumber}-$i-${item.itemType}-${item.name ?? item.refId ?? i}'),
+                        key: ValueKey(
+                            '${day.dayNumber}-$i-${item.itemType}-${item.name ?? item.refId ?? i}'),
                         margin: const EdgeInsets.only(bottom: AppSpacing.md),
                         child: ListTile(
-                          leading: Icon(_iconFor(item.itemType), color: AppColors.primary),
-                          title: Text(item.name ?? item.itemType, style: Theme.of(context).textTheme.bodyLarge),
+                          leading: Icon(_iconFor(item.itemType),
+                              color: AppColors.primary),
+                          title: Text(item.name ?? item.itemType,
+                              style: Theme.of(context).textTheme.bodyLarge),
                           subtitle: Row(
                             children: [
                               if (item.startTime != null)
@@ -149,12 +157,15 @@ class _ItineraryScreenState extends ConsumerState<ItineraryScreen> {
                                 ),
                               ),
                               if (item.estCost > 0)
-                                Text('  ·  ${formatCurrency(item.estCost)}', style: Theme.of(context).textTheme.bodySmall),
+                                Text('  ·  ${formatCurrency(item.estCost)}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
                           trailing: ReorderableDragStartListener(
                             index: i,
-                            child: const Icon(Icons.drag_handle, color: AppColors.textSecondary),
+                            child: const Icon(Icons.drag_handle,
+                                color: AppColors.textSecondary),
                           ),
                         ),
                       );

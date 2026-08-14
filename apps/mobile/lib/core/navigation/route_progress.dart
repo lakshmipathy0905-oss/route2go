@@ -45,11 +45,14 @@ class RouteProgressEngine {
       );
     }
 
-    final distanceFromRouteM = GeoMath.haversineKm(position, nearest.nearest) * 1000;
+    final distanceFromRouteM =
+        GeoMath.haversineKm(position, nearest.nearest) * 1000;
 
     // Distance travelled along the route up to the start of the segment the
     // user is nearest to, plus the fraction through that segment.
-    final segStart = nearest.segmentIndex == 0 ? 0.0 : _segmentEndKm[nearest.segmentIndex - 1];
+    final segStart = nearest.segmentIndex == 0
+        ? 0.0
+        : _segmentEndKm[nearest.segmentIndex - 1];
     final segLength = GeoMath.haversineKm(
       polyline[nearest.segmentIndex],
       polyline[nearest.segmentIndex + 1],
@@ -60,7 +63,8 @@ class RouteProgressEngine {
     final travelledKm = (segStart + segTravelled).clamp(0.0, _totalKm);
 
     final remainingKm = (_totalKm - travelledKm).clamp(0.0, _totalKm);
-    final progress = _totalKm == 0 ? 1.0 : (travelledKm / _totalKm).clamp(0.0, 1.0);
+    final progress =
+        _totalKm == 0 ? 1.0 : (travelledKm / _totalKm).clamp(0.0, 1.0);
 
     return RouteProgress(
       remainingKm: remainingKm,

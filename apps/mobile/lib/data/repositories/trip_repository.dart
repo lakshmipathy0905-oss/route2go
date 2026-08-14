@@ -32,14 +32,23 @@ class TripRepository extends BaseRepository {
       '/trip-calculate',
       allowGuest: true,
       body: {
-        'origin': {'label': originLabel, 'lat': origin['lat'], 'lng': origin['lng']},
-        'destination': {'label': destinationLabel, 'lat': destination['lat'], 'lng': destination['lng']},
+        'origin': {
+          'label': originLabel,
+          'lat': origin['lat'],
+          'lng': origin['lng']
+        },
+        'destination': {
+          'label': destinationLabel,
+          'lat': destination['lat'],
+          'lng': destination['lng']
+        },
         'trip_type': tripType,
         'vehicle': {
           'fuel_type': fuelType,
           if (mileageKmpl != null) 'mileage_kmpl': mileageKmpl,
         },
-        if (fuelPricePerLitre != null) 'fuel_price_per_litre': fuelPricePerLitre,
+        if (fuelPricePerLitre != null)
+          'fuel_price_per_litre': fuelPricePerLitre,
         if (budgetTotal != null) 'budget_total': budgetTotal,
         if (tripId != null) 'trip_id': tripId,
       },
@@ -85,7 +94,8 @@ class TripRepository extends BaseRepository {
     return parseList(res, TripSummary.fromJson);
   }
 
-  Future<TripSummary> renameTrip({required String tripId, required String newLabel}) async {
+  Future<TripSummary> renameTrip(
+      {required String tripId, required String newLabel}) async {
     final res = await _apiClient.patch('/trip', body: {
       'action': 'rename',
       'trip_id': tripId,

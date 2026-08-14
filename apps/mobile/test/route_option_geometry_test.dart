@@ -4,7 +4,8 @@ import 'package:route2go/domain/entities/route_option.dart';
 import 'package:route2go/presentation/providers/trip_planning_provider.dart';
 
 void main() {
-  RouteOption routeWith({Map<String, dynamic>? geometry}) => RouteOption.fromJson({
+  RouteOption routeWith({Map<String, dynamic>? geometry}) =>
+      RouteOption.fromJson({
         'route_type': 'recommended',
         'distance_km': 100,
         'duration_min': 90,
@@ -43,13 +44,28 @@ void main() {
   });
 
   test('returns null coordinates for malformed geometry', () {
-    expect(routeWith(geometry: {'type': 'LineString', 'coordinates': 'nope'}).geometryCoordinates,
-        isNull);
-    expect(routeWith(geometry: {'type': 'LineString', 'coordinates': [[77.2]]}).geometryCoordinates,
+    expect(
+        routeWith(geometry: {'type': 'LineString', 'coordinates': 'nope'})
+            .geometryCoordinates,
         isNull);
     expect(
-        routeWith(geometry: {'type': 'Point', 'coordinates': [77.2, 28.6]}).geometryCoordinates, isNull);
-    expect(routeWith(geometry: {'type': 'LineString', 'coordinates': []}).geometryCoordinates, isNull);
+        routeWith(geometry: {
+          'type': 'LineString',
+          'coordinates': [
+            [77.2]
+          ]
+        }).geometryCoordinates,
+        isNull);
+    expect(
+        routeWith(geometry: {
+          'type': 'Point',
+          'coordinates': [77.2, 28.6]
+        }).geometryCoordinates,
+        isNull);
+    expect(
+        routeWith(geometry: {'type': 'LineString', 'coordinates': []})
+            .geometryCoordinates,
+        isNull);
   });
 
   test('selectRoute honours the selected type and falls back safely', () {

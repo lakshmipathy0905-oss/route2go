@@ -59,14 +59,17 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
       appBar: AppBar(title: const Text('Route Options')),
       body: SafeArea(
         child: calcState.when(
-          loading: () => const AppLoadingState(message: 'Calculating routes and cost…'),
+          loading: () =>
+              const AppLoadingState(message: 'Calculating routes and cost…'),
           error: (err, st) => AppErrorState(
             error: err,
-            onRetry: () => ref.read(tripCalculationProvider.notifier).calculate(),
+            onRetry: () =>
+                ref.read(tripCalculationProvider.notifier).calculate(),
           ),
           data: (result) {
             if (result == null || result.routes.isEmpty) {
-              return const AppEmptyState(message: 'No route available for this input yet.');
+              return const AppEmptyState(
+                  message: 'No route available for this input yet.');
             }
             final routes = result.routes;
             final recommended = routes.firstWhere(
@@ -88,7 +91,8 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
                 const HintText('Tap a route below to select it for the trip.'),
                 const SizedBox(height: AppSpacing.sm),
                 if (_hasAnyTollEstimated(routes))
-                  const HintText('Toll costs marked "Estimated" may change at the plaza.'),
+                  const HintText(
+                      'Toll costs marked "Estimated" may change at the plaza.'),
                 const SizedBox(height: AppSpacing.sm),
                 _ComparisonCard(
                   routes: routes,
@@ -105,9 +109,11 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Budget tracker', style: Theme.of(context).textTheme.headlineSmall),
+                          Text('Budget tracker',
+                              style: Theme.of(context).textTheme.headlineSmall),
                           FilledButton(
-                            onPressed: () => context.push(AppRoutes.budgetTracker),
+                            onPressed: () =>
+                                context.push(AppRoutes.budgetTracker),
                             child: const Text('View'),
                           ),
                         ],
@@ -119,7 +125,8 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
                 _FlowCta(
                   icon: Icons.place_outlined,
                   title: 'Discover places along the route',
-                  subtitle: 'Attractions with real detour cost before you add them',
+                  subtitle:
+                      'Attractions with real detour cost before you add them',
                   onTap: () {
                     ref.read(placesNearRouteProvider.notifier).load();
                     context.push(AppRoutes.places);
@@ -203,7 +210,8 @@ class _RouteMapCardState extends State<_RouteMapCard> {
   @override
   Widget build(BuildContext context) {
     final routes = widget.routes;
-    final selected = routes.where((r) => r.routeType == widget.selectedType).firstOrNull;
+    final selected =
+        routes.where((r) => r.routeType == widget.selectedType).firstOrNull;
     final activeCoords = selected?.geometryCoordinates;
     // No geometry anywhere -> nothing to draw; render a compact hint instead
     // of a dead map.
@@ -256,7 +264,8 @@ class _RouteMapCardState extends State<_RouteMapCard> {
                       if (r.geometryCoordinates != null)
                         Polyline(
                           points: widget.toLatLng(r.geometryCoordinates!),
-                          strokeWidth: r.routeType == widget.selectedType ? 6 : 3,
+                          strokeWidth:
+                              r.routeType == widget.selectedType ? 6 : 3,
                           color: r.routeType == widget.selectedType
                               ? AppColors.primary
                               : AppColors.primary.withValues(alpha: 0.3),
@@ -270,13 +279,15 @@ class _RouteMapCardState extends State<_RouteMapCard> {
                         point: widget.toLatLng(activeCoords).first,
                         width: 36,
                         height: 36,
-                        child: const Icon(Icons.trip_origin, size: 36, color: AppColors.primary),
+                        child: const Icon(Icons.trip_origin,
+                            size: 36, color: AppColors.primary),
                       ),
                       Marker(
                         point: widget.toLatLng(activeCoords).last,
                         width: 36,
                         height: 36,
-                        child: const Icon(Icons.location_on, size: 36, color: AppColors.error),
+                        child: const Icon(Icons.location_on,
+                            size: 36, color: AppColors.error),
                       ),
                     ],
                   ),
@@ -320,7 +331,8 @@ class _ComparisonCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Compare routes', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Compare routes',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.md),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -328,21 +340,28 @@ class _ComparisonCard extends StatelessWidget {
                 defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 columnWidths: const {0: FixedColumnWidth(96)},
                 border: TableBorder(
-                  horizontalInside: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
+                  horizontalInside:
+                      BorderSide(color: Colors.black.withValues(alpha: 0.06)),
                 ),
                 children: [
                   _headerRow(context),
-                  _dataRow(context, 'Distance', (r) => Text(formatDistance(r.distanceKm))),
-                  _dataRow(context, 'Time', (r) => Text(formatDuration(r.durationMin))),
+                  _dataRow(context, 'Distance',
+                      (r) => Text(formatDistance(r.distanceKm))),
+                  _dataRow(context, 'Time',
+                      (r) => Text(formatDuration(r.durationMin))),
                   _dataRow(
                     context,
                     'Fuel',
                     (r) => Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(r.fuelCost != null ? formatCurrency(r.fuelCost!) : '—'),
+                        Text(r.fuelCost != null
+                            ? formatCurrency(r.fuelCost!)
+                            : '—'),
                         const SizedBox(height: AppSpacing.xs),
-                        Center(child: ConfidenceBadge(confidence: r.fuelCostConfidence)),
+                        Center(
+                            child: ConfidenceBadge(
+                                confidence: r.fuelCostConfidence)),
                       ],
                     ),
                   ),
@@ -354,11 +373,14 @@ class _ComparisonCard extends StatelessWidget {
                       children: [
                         Text(formatCurrency(r.tollCost)),
                         const SizedBox(height: AppSpacing.xs),
-                        Center(child: ConfidenceBadge(confidence: r.tollConfidence)),
+                        Center(
+                            child:
+                                ConfidenceBadge(confidence: r.tollConfidence)),
                       ],
                     ),
                   ),
-                  _dataRow(context, 'Total', (r) => Text(formatCurrency(r.totalCost))),
+                  _dataRow(context, 'Total',
+                      (r) => Text(formatCurrency(r.totalCost))),
                   _deltaRow(context),
                 ],
               ),
@@ -393,7 +415,8 @@ class _ComparisonCard extends StatelessWidget {
       children: [
         const SizedBox.shrink(),
         ...routes.map((r) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 4),
+              padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm, horizontal: 4),
               child: Column(
                 children: [
                   Text(
@@ -401,11 +424,15 @@ class _ComparisonCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: r.routeType == 'recommended' ? AppColors.primary : null,
+                          color: r.routeType == 'recommended'
+                              ? AppColors.primary
+                              : null,
                         ),
                   ),
                   if (r.routeType == 'recommended')
-                    const Text('★', style: TextStyle(color: AppColors.warning, fontSize: 12)),
+                    const Text('★',
+                        style:
+                            TextStyle(color: AppColors.warning, fontSize: 12)),
                 ],
               ),
             )),
@@ -426,7 +453,8 @@ class _ComparisonCard extends StatelessWidget {
         ),
         ...routes.map(
           (r) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: 4),
+            padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.md, horizontal: 4),
             child: Center(child: cell(r)),
           ),
         ),
@@ -439,12 +467,15 @@ class _ComparisonCard extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Text('vs recommended', style: Theme.of(context).textTheme.bodySmall),
+          child: Text('vs recommended',
+              style: Theme.of(context).textTheme.bodySmall),
         ),
         ...routes.map((r) {
-          if (r.routeType == recommended.routeType || identical(r, recommended)) {
+          if (r.routeType == recommended.routeType ||
+              identical(r, recommended)) {
             return const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: 4),
+              padding:
+                  EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: 4),
               child: Center(child: Text('—')),
             );
           }
@@ -452,18 +483,25 @@ class _ComparisonCard extends StatelessWidget {
           final timeDelta = r.durationMin - recommended.durationMin;
           final color = costDelta <= 0 ? AppColors.success : AppColors.error;
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: 4),
+            padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.md, horizontal: 4),
             child: Column(
               children: [
                 Text(
                   '${costDelta == 0 ? '' : costDelta > 0 ? '+' : '−'}${formatCurrency(costDelta.abs())}',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: color, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   '${timeDelta >= 0 ? '+' : '−'}${formatDuration(timeDelta.abs())}',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
                 ),
               ],
             ),

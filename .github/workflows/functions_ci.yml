@@ -42,7 +42,8 @@ jobs:
         run: |
           for f in admin affiliate expenses favorites feature-flags geocode \
                    itinerary-generate notifications places-near-route privacy \
-                   profile search stays-near-route support trip trip-calculate vehicles; do
+                   profile route-nav search stays-near-route support trip \
+                   trip-calculate vehicles; do
             deno check --allow-import "index.ts" 2>/dev/null || true
             (cd "$f" && deno check --allow-import index.ts)
           done

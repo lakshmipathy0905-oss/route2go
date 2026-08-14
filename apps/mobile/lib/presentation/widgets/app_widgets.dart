@@ -67,7 +67,8 @@ class BudgetMeter extends StatelessWidget {
                 children: [
                   Icon(_icon, color: _color, size: 20),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(_label, style: Theme.of(context).textTheme.headlineSmall),
+                  Text(_label,
+                      style: Theme.of(context).textTheme.headlineSmall),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
@@ -129,14 +130,18 @@ class ConfidenceBadge extends StatelessWidget {
         text = 'Data unavailable';
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -174,8 +179,11 @@ class AppErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message = error is AppException ? (error as AppException).message : 'Something went wrong. Please try again.';
-    final retryable = error is AppException ? (error as AppException).retryable : true;
+    final message = error is AppException
+        ? (error as AppException).message
+        : 'Something went wrong. Please try again.';
+    final retryable =
+        error is AppException ? (error as AppException).retryable : true;
 
     return Center(
       child: Padding(
@@ -183,7 +191,8 @@ class AppErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 40, color: AppColors.textSecondary),
+            const Icon(Icons.cloud_off_outlined,
+                size: 40, color: AppColors.textSecondary),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
@@ -192,7 +201,8 @@ class AppErrorState extends StatelessWidget {
             ),
             if (retryable && onRetry != null) ...[
               const SizedBox(height: AppSpacing.lg),
-              ElevatedButton(onPressed: onRetry, child: const Text('Try again')),
+              ElevatedButton(
+                  onPressed: onRetry, child: const Text('Try again')),
             ],
           ],
         ),
@@ -203,7 +213,8 @@ class AppErrorState extends StatelessWidget {
 
 /// Standard empty state.
 class AppEmptyState extends StatelessWidget {
-  const AppEmptyState({super.key, required this.message, this.icon = Icons.map_outlined});
+  const AppEmptyState(
+      {super.key, required this.message, this.icon = Icons.map_outlined});
   final String message;
   final IconData icon;
 
@@ -217,7 +228,9 @@ class AppEmptyState extends StatelessWidget {
           children: [
             Icon(icon, size: 40, color: AppColors.textSecondary),
             const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       ),
@@ -234,14 +247,18 @@ class OfflineBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: AppColors.warning.withValues(alpha: 0.15),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.sm, horizontal: AppSpacing.lg),
       child: Row(
         children: [
           const Icon(Icons.wifi_off, size: 16, color: AppColors.warning),
           const SizedBox(width: AppSpacing.sm),
           Text(
             "You're offline — showing your last saved trip.",
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textPrimary),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.textPrimary),
           ),
         ],
       ),

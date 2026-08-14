@@ -50,7 +50,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      body: SafeArea(child: IndexedStack(index: _navIndex, children: const [
+      body: SafeArea(
+          child: IndexedStack(index: _navIndex, children: const [
         _HomeTab(),
         _TripsTab(),
         _MapTab(),
@@ -60,10 +61,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         currentIndex: _navIndex,
         onTap: (i) => setState(() => _navIndex = i),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.route_outlined), label: 'Trips'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.route_outlined), label: 'Trips'),
           BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
     );
@@ -82,7 +86,8 @@ class _HomeTab extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
-        if (!isLoggedIn) _GuestBanner(onSignIn: () => context.push(AppRoutes.login)),
+        if (!isLoggedIn)
+          _GuestBanner(onSignIn: () => context.push(AppRoutes.login)),
         const SizedBox(height: AppSpacing.lg),
         _PlanTripCta(onTap: () => context.push(AppRoutes.planTrip)),
         const SizedBox(height: AppSpacing.xl),
@@ -109,16 +114,22 @@ class _HomeTab extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         if (vehicles.isEmpty)
-          const AppEmptyState(message: 'Add your first vehicle to pre-fill trips.', icon: Icons.directions_car_outlined)
+          const AppEmptyState(
+              message: 'Add your first vehicle to pre-fill trips.',
+              icon: Icons.directions_car_outlined)
         else
           ...vehicles.take(3).map(
                 (v) => Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ListTile(
-                    leading: const Icon(Icons.directions_car_outlined, color: AppColors.primary),
+                    leading: const Icon(Icons.directions_car_outlined,
+                        color: AppColors.primary),
                     title: Text(v.label),
                     subtitle: Text(v.fuelType.toUpperCase()),
-                    trailing: v.isDefault ? const Icon(Icons.star, size: 16, color: AppColors.warning) : null,
+                    trailing: v.isDefault
+                        ? const Icon(Icons.star,
+                            size: 16, color: AppColors.warning)
+                        : null,
                     onTap: () => context.push(AppRoutes.vehicles),
                   ),
                 ),
@@ -140,7 +151,9 @@ class _HomeTab extends ConsumerWidget {
         const SizedBox(height: AppSpacing.sm),
         if (trips.isEmpty)
           AppEmptyState(
-            message: isLoggedIn ? 'Plan your first trip to see it here.' : 'Sign in to see your saved trips.',
+            message: isLoggedIn
+                ? 'Plan your first trip to see it here.'
+                : 'Sign in to see your saved trips.',
             icon: Icons.history,
           )
         else
@@ -148,8 +161,9 @@ class _HomeTab extends ConsumerWidget {
                 (t) => Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ListTile(
-                    leading: const Icon(Icons.route_outlined, color: AppColors.primary),
-title: Text('${t.originLabel} → ${t.destinationLabel}',
+                    leading: const Icon(Icons.route_outlined,
+                        color: AppColors.primary),
+                    title: Text('${t.originLabel} → ${t.destinationLabel}',
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     subtitle: Text(t.status),
                     trailing: const Icon(Icons.chevron_right),
@@ -176,12 +190,15 @@ class _TripsTab extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, size: 44, color: AppColors.textSecondary),
+              const Icon(Icons.lock_outline,
+                  size: 44, color: AppColors.textSecondary),
               const SizedBox(height: AppSpacing.md),
               const Text('Saved trips are private to your account.',
-                    textAlign: TextAlign.center),
+                  textAlign: TextAlign.center),
               const SizedBox(height: AppSpacing.lg),
-              ElevatedButton(onPressed: () => showGuestGate(context), child: const Text('Sign in to see trips')),
+              ElevatedButton(
+                  onPressed: () => showGuestGate(context),
+                  child: const Text('Sign in to see trips')),
             ],
           ),
         ),
@@ -207,7 +224,8 @@ class _TripsTab extends ConsumerWidget {
             return Card(
               margin: const EdgeInsets.only(bottom: AppSpacing.md),
               child: ListTile(
-                leading: const Icon(Icons.route_outlined, color: AppColors.primary),
+                leading:
+                    const Icon(Icons.route_outlined, color: AppColors.primary),
                 title: Text('${t.originLabel} → ${t.destinationLabel}'),
                 subtitle: Text(
                   '${t.tripType == 'round_trip' ? 'Round trip' : 'One-way'} · ${t.status}'
@@ -248,7 +266,8 @@ class _CorridorMap extends StatelessWidget {
         children: [
           Padding(
             padding: EdgeInsets.all(AppSpacing.lg),
-            child: HintText('Places you picked recently appear here. Open a saved trip for its route map.'),
+            child: HintText(
+                'Places you picked recently appear here. Open a saved trip for its route map.'),
           ),
           Expanded(
             child: Center(
@@ -279,7 +298,10 @@ class _ProfileTab extends ConsumerWidget {
         Icons.favorite_outline,
         'Favorites',
         () {
-          if (!isLoggedIn) { showGuestGate(context); return; }
+          if (!isLoggedIn) {
+            showGuestGate(context);
+            return;
+          }
           context.push(AppRoutes.favorites);
         }
       ),
@@ -287,7 +309,10 @@ class _ProfileTab extends ConsumerWidget {
         Icons.notifications_none,
         'Notifications & preferences',
         () {
-          if (!isLoggedIn) { showGuestGate(context); return; }
+          if (!isLoggedIn) {
+            showGuestGate(context);
+            return;
+          }
           context.push(AppRoutes.notifications);
         }
       ),
@@ -322,14 +347,18 @@ class _ProfileTab extends ConsumerWidget {
               backgroundColor: AppColors.primary.withValues(alpha: 0.12),
               child: const Icon(Icons.person_outline, color: AppColors.primary),
             ),
-            title: Text(profile?.name ?? (isLoggedIn ? 'Route2Go user' : 'Guest'),
+            title: Text(
+                profile?.name ?? (isLoggedIn ? 'Route2Go user' : 'Guest'),
                 style: Theme.of(context).textTheme.bodyLarge),
             subtitle: Text(isLoggedIn ? 'Signed in' : 'Browsing as guest',
                 style: Theme.of(context).textTheme.bodySmall),
             trailing: isLoggedIn
-                ? TextButton(onPressed: () => ref.read(authRepositoryProvider).signOut(),
+                ? TextButton(
+                    onPressed: () => ref.read(authRepositoryProvider).signOut(),
                     child: const Text('Sign out'))
-                : TextButton(onPressed: () => context.push(AppRoutes.login), child: const Text('Sign in')),
+                : TextButton(
+                    onPressed: () => context.push(AppRoutes.login),
+                    child: const Text('Sign in')),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -408,14 +437,18 @@ class _PlanTripCta extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Plan a Trip',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(color: Colors.white)),
                       const SizedBox(height: AppSpacing.xs),
                       const Text('Route, cost, places and stays — in one flow',
                           style: TextStyle(color: Colors.white70)),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
+                const Icon(Icons.arrow_forward_ios,
+                    color: Colors.white70, size: 16),
               ],
             ),
           ),

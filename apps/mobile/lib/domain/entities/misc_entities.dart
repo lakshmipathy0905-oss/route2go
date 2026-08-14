@@ -1,7 +1,8 @@
 /// A server-side feature flag. Clients may only READ flags; only a Super
 /// Admin can change them (spec 2.14). Never let a client toggle its own flag.
 class FeatureFlag {
-  const FeatureFlag({required this.key, required this.enabled, this.description});
+  const FeatureFlag(
+      {required this.key, required this.enabled, this.description});
 
   final String key;
   final bool enabled;

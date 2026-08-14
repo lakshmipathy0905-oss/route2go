@@ -14,12 +14,14 @@ class NotificationRepository extends BaseRepository {
   }
 
   Future<int> unreadCount() async {
-    final res = await _apiClient.get('/notifications', queryParameters: {'unread_count': '1'});
+    final res = await _apiClient
+        .get('/notifications', queryParameters: {'unread_count': '1'});
     return (res['data'] as num?)?.toInt() ?? 0;
   }
 
   Future<void> markRead(String notificationId) async {
-    await _apiClient.patch('/notifications', body: {'notification_id': notificationId});
+    await _apiClient
+        .patch('/notifications', body: {'notification_id': notificationId});
   }
 
   Future<void> markAllRead() async {
@@ -27,12 +29,14 @@ class NotificationRepository extends BaseRepository {
   }
 
   Future<void> deleteNotification(String notificationId) async {
-    await _apiClient.delete('/notifications', queryParameters: {'notification_id': notificationId});
+    await _apiClient.delete('/notifications',
+        queryParameters: {'notification_id': notificationId});
   }
 
   /// Registers the FCM token so the server can deliver push notifications.
   Future<void> registerFcmToken(String token) async {
-    await _apiClient.post('/notifications', body: {'action': 'register_token', 'token': token});
+    await _apiClient.post('/notifications',
+        body: {'action': 'register_token', 'token': token});
   }
 }
 

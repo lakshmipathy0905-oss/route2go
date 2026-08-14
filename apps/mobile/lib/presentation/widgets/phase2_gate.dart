@@ -28,7 +28,8 @@ class Phase2Gate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final flags = ref.watch(featureFlagsProvider).valueOrNull ?? const <String, bool>{};
+    final flags =
+        ref.watch(featureFlagsProvider).valueOrNull ?? const <String, bool>{};
     final enabled = flags[flagKey] ?? false;
     if (enabled) return child;
     return _Phase2Shell(title: title, subtitle: subtitle, icon: icon);
@@ -49,7 +50,8 @@ class _Phase2Shell extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
-            Icon(icon ?? Icons.auto_awesome_outlined, color: AppColors.textSecondary),
+            Icon(icon ?? Icons.auto_awesome_outlined,
+                color: AppColors.textSecondary),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(

@@ -38,9 +38,12 @@ class Profile {
       name: name ?? this.name,
       photoUrl: photoUrl ?? this.photoUrl,
       language: language ?? this.language,
-      homeLocationLat: clearHome ? null : (homeLocationLat ?? this.homeLocationLat),
-      homeLocationLng: clearHome ? null : (homeLocationLng ?? this.homeLocationLng),
-      homeLocationLabel: clearHome ? null : (homeLocationLabel ?? this.homeLocationLabel),
+      homeLocationLat:
+          clearHome ? null : (homeLocationLat ?? this.homeLocationLat),
+      homeLocationLng:
+          clearHome ? null : (homeLocationLng ?? this.homeLocationLng),
+      homeLocationLabel:
+          clearHome ? null : (homeLocationLabel ?? this.homeLocationLabel),
       travelPref: travelPref ?? this.travelPref,
       accommodationPref: accommodationPref ?? this.accommodationPref,
       analyticsOptOut: analyticsOptOut ?? this.analyticsOptOut,

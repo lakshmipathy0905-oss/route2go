@@ -10,6 +10,7 @@ import '../../widgets/sharing_widgets.dart';
 import '../../../domain/entities/stay.dart';
 import '../../../data/repositories/stays_repository.dart';
 import '../../../data/repositories/favorites_repository.dart';
+
 class StaysScreen extends ConsumerStatefulWidget {
   const StaysScreen({super.key});
 
@@ -81,7 +82,8 @@ class _StaysScreenState extends ConsumerState<StaysScreen> {
                   ),
                   Expanded(
                     child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       itemCount: near.stays.length,
                       itemBuilder: (context, i) {
                         final stay = near.stays[i];
@@ -90,7 +92,8 @@ class _StaysScreenState extends ConsumerState<StaysScreen> {
                           stay: stay,
                           selected: selected,
                           onToggleSelect: () {
-                            final notifier = ref.read(tripSelectionProvider.notifier);
+                            final notifier =
+                                ref.read(tripSelectionProvider.notifier);
                             final current = ref.read(tripSelectionProvider);
                             notifier.state = current.containsStay(stay)
                                 ? current.removeStay(stay.id)
@@ -131,8 +134,12 @@ class _StaysScreenState extends ConsumerState<StaysScreen> {
               : 'You\'ll be taken to ${stay.partnerName ?? 'our partner'} to complete your booking.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Continue')),
         ],
       ),
     );
@@ -170,7 +177,8 @@ class _PriceFilterField extends StatelessWidget {
       decoration: const InputDecoration(
         labelText: 'Max price/night (₹)',
         isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.md),
       ),
     );
   }
@@ -231,17 +239,20 @@ class _StayCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(stay.name, style: Theme.of(context).textTheme.headlineSmall),
+                  child: Text(stay.name,
+                      style: Theme.of(context).textTheme.headlineSmall),
                 ),
                 if (selected) ...[
-                  const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                  const Icon(Icons.check_circle,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: AppSpacing.sm),
                 ],
                 if (stay.isSponsored) ...[
                   const DisclosureBadge(label: 'Partner'),
                   const SizedBox(width: AppSpacing.sm),
                 ],
-                if (stay.rating != null) StarRating(rating: stay.rating, size: 12),
+                if (stay.rating != null)
+                  StarRating(rating: stay.rating, size: 12),
               ],
             ),
             if (stay.partnerName != null) ...[
@@ -258,12 +269,16 @@ class _StayCard extends StatelessWidget {
                         : 'Price on request',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
                 if (stay.distanceFromRouteKm != null) ...[
                   const SizedBox(width: AppSpacing.md),
-                  HintText('${formatDistance(stay.distanceFromRouteKm!)} from route'),
+                  HintText(
+                      '${formatDistance(stay.distanceFromRouteKm!)} from route'),
                 ],
               ],
             ),
@@ -275,20 +290,24 @@ class _StayCard extends StatelessWidget {
                 children: stay.amenities
                     .take(5)
                     .map((a) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.black.withValues(alpha: 0.1)),
+                            border: Border.all(
+                                color: Colors.black.withValues(alpha: 0.1)),
                           ),
-                          child: Text(a, style: Theme.of(context).textTheme.bodySmall),
+                          child: Text(a,
+                              style: Theme.of(context).textTheme.bodySmall),
                         ))
                     .toList(),
               ),
             ],
             if (stay.commission != null) ...[
               const SizedBox(height: AppSpacing.sm),
-              const HintText('Route2Go may earn a commission on bookings — it never changes your price.'),
+              const HintText(
+                  'Route2Go may earn a commission on bookings — it never changes your price.'),
             ],
             const SizedBox(height: AppSpacing.md),
             Row(

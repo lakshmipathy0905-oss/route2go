@@ -115,7 +115,8 @@ class ApiClient {
         e.type == DioExceptionType.connectionError) {
       return const AppException(
         code: 'NETWORK_UNAVAILABLE',
-        message: 'No internet connection. Please check your connection and try again.',
+        message:
+            'No internet connection. Please check your connection and try again.',
         retryable: true,
       );
     }

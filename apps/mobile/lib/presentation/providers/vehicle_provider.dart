@@ -20,7 +20,8 @@ class VehicleListNotifier extends AsyncNotifier<List<Vehicle>> {
 
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => ref.read(vehicleRepositoryProvider).listVehicles());
+    state = await AsyncValue.guard(
+        () => ref.read(vehicleRepositoryProvider).listVehicles());
   }
 
   Future<void> add(Vehicle vehicle) async {
@@ -64,7 +65,8 @@ class VehicleListNotifier extends AsyncNotifier<List<Vehicle>> {
   }
 }
 
-final vehicleListProvider = AsyncNotifierProvider<VehicleListNotifier, List<Vehicle>>(
+final vehicleListProvider =
+    AsyncNotifierProvider<VehicleListNotifier, List<Vehicle>>(
   VehicleListNotifier.new,
 );
 

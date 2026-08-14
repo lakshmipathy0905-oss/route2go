@@ -52,18 +52,22 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _descriptionCtrl,
-              decoration: const InputDecoration(labelText: 'Description (optional)'),
+              decoration:
+                  const InputDecoration(labelText: 'Description (optional)'),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _estimatedCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Estimated amount (₹)'),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration:
+                  const InputDecoration(labelText: 'Estimated amount (₹)'),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _actualCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'Actual amount (₹) — optional, record after paying',
               ),
@@ -73,7 +77,8 @@ class _ExpenseEditScreenState extends ConsumerState<ExpenseEditScreen> {
               Text(_error!, style: const TextStyle(color: AppColors.error)),
             ],
             const SizedBox(height: AppSpacing.xl),
-            ElevatedButton(onPressed: _onSave, child: const Text('Save Expense')),
+            ElevatedButton(
+                onPressed: _onSave, child: const Text('Save Expense')),
           ],
         ),
       ),

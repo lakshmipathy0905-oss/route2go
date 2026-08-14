@@ -6,7 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// backend call sends the Firebase ID token as a bearer token; the app never
 /// talks to Supabase directly for privileged writes (see AuthRepository /
 /// ApiClient for how the token gets attached to requests).
-final firebaseAuthProvider = Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
+final firebaseAuthProvider =
+    Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
 
 /// Streams the current Firebase user; null means guest mode, which is a
 /// first-class, supported state (spec Section 5.2) — not an error state.
@@ -41,7 +42,8 @@ class AuthRepository {
   }
 
   Future<UserCredential> signUpWithEmail(String email, String password) {
-    return _auth.createUserWithEmailAndPassword(email: email, password: password);
+    return _auth.createUserWithEmailAndPassword(
+        email: email, password: password);
   }
 
   Future<UserCredential> signInWithEmail(String email, String password) {

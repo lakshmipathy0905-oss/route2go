@@ -64,8 +64,10 @@ class ReroutePolicy {
     while (!canRequest()) {
       final now = _now();
       final next = _nextAllowedAt ?? now;
-      final waitMs = next.isAfter(now) ? next.difference(now).inMilliseconds : 0;
-      await Future<void>.delayed(Duration(milliseconds: waitMs > 0 ? waitMs : 1));
+      final waitMs =
+          next.isAfter(now) ? next.difference(now).inMilliseconds : 0;
+      await Future<void>.delayed(
+          Duration(milliseconds: waitMs > 0 ? waitMs : 1));
     }
   }
 

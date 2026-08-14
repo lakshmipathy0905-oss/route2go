@@ -54,7 +54,8 @@ class GeolocatorLocationSource implements LocationSource {
   @override
   Future<bool> get hasPermission async {
     final perm = await Geolocator.checkPermission();
-    return perm == LocationPermission.whileInUse || perm == LocationPermission.always;
+    return perm == LocationPermission.whileInUse ||
+        perm == LocationPermission.always;
   }
 
   LocationUpdate _toUpdate(Position pos) {
@@ -71,7 +72,9 @@ class GeolocatorLocationSource implements LocationSource {
 
 /// Test-only scripted location source. Never used in production.
 class FakeLocationSource implements LocationSource {
-  FakeLocationSource({required List<LocationUpdate> points, Duration interval = const Duration(milliseconds: 100)})
+  FakeLocationSource(
+      {required List<LocationUpdate> points,
+      Duration interval = const Duration(milliseconds: 100)})
       : _points = points,
         _interval = interval;
 
@@ -81,7 +84,10 @@ class FakeLocationSource implements LocationSource {
   @override
   Stream<LocationUpdate> get updates => Stream.periodic(_interval, (i) {
         if (_points.isEmpty) {
-          return LocationUpdate(lat: 0, lng: 0, timestamp: DateTime.fromMillisecondsSinceEpoch(0));
+          return LocationUpdate(
+              lat: 0,
+              lng: 0,
+              timestamp: DateTime.fromMillisecondsSinceEpoch(0));
         }
         return _points[i.clamp(0, _points.length - 1)];
       });

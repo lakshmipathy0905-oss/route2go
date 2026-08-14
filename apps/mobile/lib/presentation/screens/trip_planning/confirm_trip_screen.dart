@@ -43,18 +43,25 @@ class ConfirmTripScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Trip summary', style: Theme.of(context).textTheme.headlineSmall),
+                    Text('Trip summary',
+                        style: Theme.of(context).textTheme.headlineSmall),
                     const SizedBox(height: AppSpacing.md),
-                    _row(context, 'Route', '${form.originLabel} → ${form.destinationLabel}'),
+                    _row(context, 'Route',
+                        '${form.originLabel} → ${form.destinationLabel}'),
                     if (route != null) ...[
-                      _row(context, 'Distance', formatDistance(route.distanceKm)),
+                      _row(context, 'Distance',
+                          formatDistance(route.distanceKm)),
                       _row(context, 'Time', formatDuration(route.durationMin)),
-                      _row(context, 'Est. cost', formatCurrency(route.totalCost)),
+                      _row(context, 'Est. cost',
+                          formatCurrency(route.totalCost)),
                     ],
-                    _row(context, 'Places selected', '${selection.places.length}'),
-                    _row(context, 'Stays selected', '${selection.stays.length}'),
+                    _row(context, 'Places selected',
+                        '${selection.places.length}'),
+                    _row(
+                        context, 'Stays selected', '${selection.stays.length}'),
                     if (itinerary != null)
-                      _row(context, 'Itinerary days', '${itinerary.days.length}'),
+                      _row(context, 'Itinerary days',
+                          '${itinerary.days.length}'),
                   ],
                 ),
               ),
@@ -90,7 +97,10 @@ class ConfirmTripScreen extends ConsumerWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -100,7 +110,10 @@ class ConfirmTripScreen extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -134,10 +147,13 @@ class ConfirmTripScreen extends ConsumerWidget {
     ).showModal(context);
     if (!context.mounted) return;
 
-    final perm = await ref.read(geocodingRepositoryProvider).requestLocationPermission(background: true);
+    final perm = await ref
+        .read(geocodingRepositoryProvider)
+        .requestLocationPermission(background: true);
 
     if (context.mounted) {
-      if (perm == LocationPermission.deniedForever || perm == LocationPermission.denied) {
+      if (perm == LocationPermission.deniedForever ||
+          perm == LocationPermission.denied) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -145,7 +161,9 @@ class ConfirmTripScreen extends ConsumerWidget {
             ),
           ),
         );
-      } else if (!kIsWeb && Platform.isAndroid && perm == LocationPermission.whileInUse) {
+      } else if (!kIsWeb &&
+          Platform.isAndroid &&
+          perm == LocationPermission.whileInUse) {
         final open = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -208,7 +226,8 @@ class ConfirmTripScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted && !navigateToLive) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save the trip. Please try again.')),
+          const SnackBar(
+              content: Text('Could not save the trip. Please try again.')),
         );
       }
     }

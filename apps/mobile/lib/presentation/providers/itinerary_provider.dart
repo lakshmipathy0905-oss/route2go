@@ -24,8 +24,10 @@ class ItineraryNotifier extends AsyncNotifier<ItineraryPlan?> {
       return;
     }
 
-    final places = ref.read(placesNearRouteProvider).valueOrNull?.places ?? const <Place>[];
-    final stays = ref.read(staysNearRouteProvider).valueOrNull?.stays ?? const <Stay>[];
+    final places = ref.read(placesNearRouteProvider).valueOrNull?.places ??
+        const <Place>[];
+    final stays =
+        ref.read(staysNearRouteProvider).valueOrNull?.stays ?? const <Stay>[];
 
     state = const AsyncLoading();
     final repo = ref.read(itineraryRepositoryProvider);
@@ -53,6 +55,7 @@ class ItineraryNotifier extends AsyncNotifier<ItineraryPlan?> {
   void reset() => state = const AsyncData(null);
 }
 
-final itineraryProvider = AsyncNotifierProvider<ItineraryNotifier, ItineraryPlan?>(
+final itineraryProvider =
+    AsyncNotifierProvider<ItineraryNotifier, ItineraryPlan?>(
   ItineraryNotifier.new,
 );

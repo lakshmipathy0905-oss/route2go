@@ -8,7 +8,8 @@ import '../../core/theme/app_theme.dart';
 String formatCurrency(double value) =>
     '₹${value < 0 ? '-' : ''}${value.abs().toStringAsFixed(0)}';
 
-String formatDistance(double km) => km >= 100 ? '${km.toStringAsFixed(0)} km' : '${km.toStringAsFixed(1)} km';
+String formatDistance(double km) =>
+    km >= 100 ? '${km.toStringAsFixed(0)} km' : '${km.toStringAsFixed(1)} km';
 
 String formatDuration(int minutes) {
   final h = minutes ~/ 60;
@@ -31,7 +32,8 @@ class StarRating extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_outline, size: 16, color: AppColors.textSecondary),
+          const Icon(Icons.star_outline,
+              size: 16, color: AppColors.textSecondary),
           const SizedBox(width: AppSpacing.xs),
           Text('No rating yet', style: Theme.of(context).textTheme.bodySmall),
         ],
@@ -50,7 +52,10 @@ class StarRating extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Text(
           rating!.toStringAsFixed(1),
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -68,16 +73,19 @@ class DisclosureBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.textPrimary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.3)),
+        border:
+            Border.all(color: AppColors.textSecondary.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.business_outlined, size: 12, color: AppColors.textSecondary),
+          const Icon(Icons.business_outlined,
+              size: 12, color: AppColors.textSecondary),
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
@@ -113,11 +121,15 @@ class TagChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.2)),
+          border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.textSecondary.withValues(alpha: 0.2)),
         ),
         child: Text(
           label,
@@ -161,14 +173,18 @@ class HintText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+      style: Theme.of(context)
+          .textTheme
+          .bodySmall
+          ?.copyWith(color: AppColors.textSecondary),
     );
   }
 }
 
 /// Deterministic color from a string (used for avatar placeholders).
 Color colorFromSeed(String seed) {
-  final hash = seed.codeUnits.fold<int>(0, (acc, c) => (acc * 31 + c) & 0x7fffffff);
+  final hash =
+      seed.codeUnits.fold<int>(0, (acc, c) => (acc * 31 + c) & 0x7fffffff);
   return HSLColor.fromAHSL(
     1,
     (hash % 360).toDouble(),
@@ -178,7 +194,8 @@ Color colorFromSeed(String seed) {
 }
 
 /// Truncate long strings without breaking the layout.
-String ellipsize(String s, int max) => s.length <= max ? s : '${s.substring(0, max - 1)}…';
+String ellipsize(String s, int max) =>
+    s.length <= max ? s : '${s.substring(0, max - 1)}…';
 
 double deg2rad(double d) => d * math.pi / 180;
 
@@ -189,6 +206,8 @@ double haversineDistanceKm(double lat1, double lng1, double lat2, double lng2) {
   final dLat = deg2rad(lat2 - lat1);
   final dLng = deg2rad(lng2 - lng1);
   final a = math.pow(math.sin(dLat / 2), 2) +
-      math.cos(deg2rad(lat1)) * math.cos(deg2rad(lat2)) * math.pow(math.sin(dLng / 2), 2);
+      math.cos(deg2rad(lat1)) *
+          math.cos(deg2rad(lat2)) *
+          math.pow(math.sin(dLng / 2), 2);
   return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 }

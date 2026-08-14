@@ -36,12 +36,14 @@ class PlacesRepository extends BaseRepository {
   }
 
   Future<List<PlaceCategory>> categories() async {
-    final res = await _apiClient.get('/places-near-route', queryParameters: {'categories': '1'});
+    final res = await _apiClient
+        .get('/places-near-route', queryParameters: {'categories': '1'});
     return parseList(res, PlaceCategory.fromJson);
   }
 
   Future<Place?> placeById(String id) async {
-    final res = await _apiClient.get('/places-near-route', queryParameters: {'place_id': id});
+    final res = await _apiClient
+        .get('/places-near-route', queryParameters: {'place_id': id});
     final list = parseList(res, Place.fromJson);
     return list.isNotEmpty ? list.first : null;
   }

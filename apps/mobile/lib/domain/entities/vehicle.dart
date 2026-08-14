@@ -48,7 +48,8 @@ class Vehicle {
       fuelType: json['fuel_type'] as String,
       mileageKmpl: (json['mileage_kmpl'] as num?)?.toDouble(),
       evBatteryKwh: (json['ev_battery_kwh'] as num?)?.toDouble(),
-      evEfficiencyKwhPerKm: (json['ev_efficiency_kwh_per_km'] as num?)?.toDouble(),
+      evEfficiencyKwhPerKm:
+          (json['ev_efficiency_kwh_per_km'] as num?)?.toDouble(),
       cngMileageKmPerKg: (json['cng_mileage_km_per_kg'] as num?)?.toDouble(),
       isDefault: json['is_default'] as bool? ?? false,
     );

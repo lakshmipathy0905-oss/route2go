@@ -62,7 +62,8 @@ void main() {
     });
 
     test('copyWith overrides only supplied fields', () {
-      final v = Vehicle.fromJson({'id': 'v1', 'label': 'A', 'fuel_type': 'petrol'});
+      final v =
+          Vehicle.fromJson({'id': 'v1', 'label': 'A', 'fuel_type': 'petrol'});
       final v2 = v.copyWith(label: 'B');
       expect(v2.label, 'B');
       expect(v2.fuelType, 'petrol');

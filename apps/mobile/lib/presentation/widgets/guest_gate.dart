@@ -31,7 +31,8 @@ class GuestGateSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.account_circle_outlined, size: 48, color: AppColors.primary),
+            const Icon(Icons.account_circle_outlined,
+                size: 48, color: AppColors.primary),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Create an account to keep this',
@@ -42,7 +43,10 @@ class GuestGateSheet extends StatelessWidget {
             Text(
               'Saving trips, vehicles, expenses and notifications works with a free Route2Go account. You can plan and estimate routes without one.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.xl),
             ElevatedButton(

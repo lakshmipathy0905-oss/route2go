@@ -8,7 +8,8 @@ import '../../widgets/app_widgets.dart';
 /// Terms of Service) as an in-app screen. Both docs are drafts — they must be
 /// reviewed by qualified legal counsel before Route2Go goes to the stores.
 class LegalDocScreen extends StatefulWidget {
-  const LegalDocScreen({super.key, required this.assetPath, required this.title});
+  const LegalDocScreen(
+      {super.key, required this.assetPath, required this.title});
 
   final String assetPath;
   final String title;
@@ -45,7 +46,9 @@ class _LegalDocScreenState extends State<LegalDocScreen> {
                   ),
                   child: const Text(
                     'DRAFT — this document is a starting template and has not been reviewed by a lawyer. Do not rely on it as final legal text.',
-                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -69,13 +72,16 @@ class _LegalDocScreenState extends State<LegalDocScreen> {
       }
       if (trimmed.startsWith('## ')) {
         widgets.add(Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm, top: AppSpacing.lg),
-          child: Text(trimmed.substring(3), style: Theme.of(context).textTheme.headlineSmall),
+          padding:
+              const EdgeInsets.only(bottom: AppSpacing.sm, top: AppSpacing.lg),
+          child: Text(trimmed.substring(3),
+              style: Theme.of(context).textTheme.headlineSmall),
         ));
       } else if (trimmed.startsWith('# ')) {
         widgets.add(Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Text(trimmed.substring(2), style: Theme.of(context).textTheme.headlineMedium),
+          child: Text(trimmed.substring(2),
+              style: Theme.of(context).textTheme.headlineMedium),
         ));
       } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         widgets.add(Padding(
@@ -97,7 +103,8 @@ class _LegalDocScreenState extends State<LegalDocScreen> {
           ),
         ));
       } else {
-        widgets.add(Text(trimmed, style: Theme.of(context).textTheme.bodyLarge));
+        widgets
+            .add(Text(trimmed, style: Theme.of(context).textTheme.bodyLarge));
       }
     }
     return widgets;

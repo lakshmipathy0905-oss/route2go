@@ -21,11 +21,13 @@ class AdminUsersScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: TextField(
-                onSubmitted: (q) => ref.read(adminUsersProvider.notifier).search(q.trim()),
+                onSubmitted: (q) =>
+                    ref.read(adminUsersProvider.notifier).search(q.trim()),
                 decoration: InputDecoration(
                   hintText: 'Search by email or phone…',
                   prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -41,14 +43,16 @@ class AdminUsersScreen extends ConsumerWidget {
                     );
                   }
                   return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
                     itemCount: list.length,
                     itemBuilder: (context, i) {
                       final u = list[i];
                       return Card(
                         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: ListTile(
-                          leading: const Icon(Icons.person_outline, color: AppColors.primary),
+                          leading: const Icon(Icons.person_outline,
+                              color: AppColors.primary),
                           title: Text(u.email ?? u.phone ?? u.id),
                           subtitle: Text(
                             '${u.authProvider ?? 'unknown'} · ${u.id}\n'

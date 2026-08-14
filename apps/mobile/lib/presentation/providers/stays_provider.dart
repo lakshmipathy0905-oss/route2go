@@ -6,7 +6,8 @@ import 'trip_planning_provider.dart';
 
 /// Stays found near the current route (spec 2.5).
 class StaysNearRoute {
-  const StaysNearRoute({required this.stays, this.filters = const StayFilters()});
+  const StaysNearRoute(
+      {required this.stays, this.filters = const StayFilters()});
   final List<Stay> stays;
   final StayFilters filters;
 }
@@ -38,6 +39,7 @@ class StaysNotifier extends AsyncNotifier<StaysNearRoute> {
   }
 }
 
-final staysNearRouteProvider = AsyncNotifierProvider<StaysNotifier, StaysNearRoute>(
+final staysNearRouteProvider =
+    AsyncNotifierProvider<StaysNotifier, StaysNearRoute>(
   StaysNotifier.new,
 );

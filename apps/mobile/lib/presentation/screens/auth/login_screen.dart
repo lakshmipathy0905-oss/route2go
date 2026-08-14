@@ -73,11 +73,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: AppSpacing.xl),
-              Text('Welcome to Route2Go', style: Theme.of(context).textTheme.headlineLarge),
+              Text('Welcome to Route2Go',
+                  style: Theme.of(context).textTheme.headlineLarge),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'Sign in to save trips, vehicles and get notifications — or continue as a guest.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
               if (_error != null) ...[
@@ -109,7 +113,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             OutlinedButton(
-              onPressed: _loading ? null : () => setState(() => _mode = _Mode.emailSignIn),
+              onPressed: _loading
+                  ? null
+                  : () => setState(() => _mode = _Mode.emailSignIn),
               child: const Text('Continue with Email'),
             ),
           ],
@@ -139,26 +145,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   : () => _run(() async {
                         if (isSignUp) {
                           await authRepo.signUpWithEmail(
-                              _emailController.text.trim(), _passwordController.text);
+                              _emailController.text.trim(),
+                              _passwordController.text);
                         } else {
                           await authRepo.signInWithEmail(
-                              _emailController.text.trim(), _passwordController.text);
+                              _emailController.text.trim(),
+                              _passwordController.text);
                         }
                       }),
-              child: Text(_loading ? 'Please wait…' : (isSignUp ? 'Sign Up' : 'Sign In')),
+              child: Text(_loading
+                  ? 'Please wait…'
+                  : (isSignUp ? 'Sign Up' : 'Sign In')),
             ),
             const SizedBox(height: AppSpacing.sm),
             TextButton(
               onPressed: _loading
                   ? null
-                  : () => setState(() => _mode = isSignUp ? _Mode.emailSignIn : _Mode.emailSignUp),
-              child: Text(isSignUp ? 'Have an account? Sign in' : "New here? Create an account"),
+                  : () => setState(() =>
+                      _mode = isSignUp ? _Mode.emailSignIn : _Mode.emailSignUp),
+              child: Text(isSignUp
+                  ? 'Have an account? Sign in'
+                  : "New here? Create an account"),
             ),
             if (!isSignUp)
               TextButton(
                 onPressed: _loading
                     ? null
-                    : () => _run(() => authRepo.sendPasswordResetEmail(_emailController.text.trim())),
+                    : () => _run(() => authRepo
+                        .sendPasswordResetEmail(_emailController.text.trim())),
                 child: const Text('Forgot password?'),
               ),
           ],

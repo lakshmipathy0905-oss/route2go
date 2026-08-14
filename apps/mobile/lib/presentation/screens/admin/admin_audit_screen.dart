@@ -43,8 +43,10 @@ class AdminAuditScreen extends ConsumerWidget {
                 return Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ListTile(
-                    leading: const Icon(Icons.history, color: AppColors.primary),
-                    title: Text(e.action, style: Theme.of(context).textTheme.bodyLarge),
+                    leading:
+                        const Icon(Icons.history, color: AppColors.primary),
+                    title: Text(e.action,
+                        style: Theme.of(context).textTheme.bodyLarge),
                     subtitle: Text(
                       '${e.actorFirebaseUid ?? 'system'} · ${e.entityType}'
                       '${e.entityId != null ? ' · $e.entityId' : ''}\n'
@@ -53,7 +55,8 @@ class AdminAuditScreen extends ConsumerWidget {
                     ),
                     isThreeLine: true,
                     trailing: e.afterSummary != null
-                        ? const Icon(Icons.schedule, size: 16, color: AppColors.textSecondary)
+                        ? const Icon(Icons.schedule,
+                            size: 16, color: AppColors.textSecondary)
                         : null,
                   ),
                 );

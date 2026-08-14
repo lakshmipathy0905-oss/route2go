@@ -76,7 +76,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               initialValue: _travelPref,
               decoration: const InputDecoration(labelText: 'Travel preference'),
               items: const [
-                DropdownMenuItem(value: 'budget', child: Text('Budget-conscious')),
+                DropdownMenuItem(
+                    value: 'budget', child: Text('Budget-conscious')),
                 DropdownMenuItem(value: 'balanced', child: Text('Balanced')),
                 DropdownMenuItem(value: 'premium', child: Text('Premium')),
               ],
@@ -111,7 +112,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   Future<void> _pickHome() async {
-    final picked = await context.push<GeoPlace>(AppRoutes.locationPicker, extra: 'origin');
+    final picked =
+        await context.push<GeoPlace>(AppRoutes.locationPicker, extra: 'origin');
     if (picked != null) {
       setState(() {
         _homeLabel = picked.label;
@@ -139,7 +141,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Could not save your profile. Please try again.');
+        setState(
+            () => _error = 'Could not save your profile. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);

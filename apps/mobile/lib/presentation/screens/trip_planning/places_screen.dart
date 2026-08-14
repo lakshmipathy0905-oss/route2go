@@ -31,16 +31,20 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
           final trip = ref.watch(tripSelectionProvider);
 
           return state.when(
-            loading: () => const AppLoadingState(message: 'Finding places near your route…'),
+            loading: () => const AppLoadingState(
+                message: 'Finding places near your route…'),
             error: (err, st) => AppErrorState(
               error: err,
-              onRetry: () => ref.read(placesNearRouteProvider.notifier).load(force: true),
+              onRetry: () =>
+                  ref.read(placesNearRouteProvider.notifier).load(force: true),
             ),
             data: (placesNear) {
               var places = placesNear.places;
               if (_selectedCategoryIds.isNotEmpty) {
                 places = places
-                    .where((p) => p.categoryId != null && _selectedCategoryIds.contains(p.categoryId))
+                    .where((p) =>
+                        p.categoryId != null &&
+                        _selectedCategoryIds.contains(p.categoryId))
                     .toList();
               }
               if (placesNear.places.isEmpty) {
@@ -48,7 +52,8 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
                   children: [
                     const Expanded(
                       child: AppEmptyState(
-                        message: 'No places found near this route in your data yet.',
+                        message:
+                            'No places found near this route in your data yet.',
                         icon: Icons.place_outlined,
                       ),
                     ),
@@ -56,7 +61,9 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       child: FilledButton.icon(
                         icon: const Icon(Icons.refresh),
-                        onPressed: () => ref.read(placesNearRouteProvider.notifier).load(force: true),
+                        onPressed: () => ref
+                            .read(placesNearRouteProvider.notifier)
+                            .load(force: true),
                         label: const Text('Search again'),
                       ),
                     ),
@@ -70,17 +77,20 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
                       height: 52,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg),
                         children: [
                           TagChip(
                             label: 'All',
                             selected: _selectedCategoryIds.isEmpty,
-                            onTap: () => setState(() => _selectedCategoryIds.clear()),
+                            onTap: () =>
+                                setState(() => _selectedCategoryIds.clear()),
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           ...placesNear.categories.map(
                             (c) => Padding(
-                              padding: const EdgeInsets.only(right: AppSpacing.sm),
+                              padding:
+                                  const EdgeInsets.only(right: AppSpacing.sm),
                               child: TagChip(
                                 label: c.name,
                                 selected: _selectedCategoryIds.contains(c.id),
@@ -96,15 +106,18 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
                       ),
                     ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
                     child: Row(
                       children: [
-                        HintText('Detour radius: ${_detourRadiusKm.toStringAsFixed(0)} km'),
+                        HintText(
+                            'Detour radius: ${_detourRadiusKm.toStringAsFixed(0)} km'),
                         const Spacer(),
                         PopupMenuButton<String>(
                           icon: const Icon(Icons.tune, size: 20),
                           tooltip: 'Detour radius',
-                          onSelected: (v) => setState(() => _detourRadiusKm = double.parse(v)),
+                          onSelected: (v) =>
+                              setState(() => _detourRadiusKm = double.parse(v)),
                           itemBuilder: (context) => const [
                             PopupMenuItem(value: '10', child: Text('10 km')),
                             PopupMenuItem(value: '30', child: Text('30 km')),
@@ -126,7 +139,8 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
                           place: p,
                           addedToTrip: added,
                           onToggleAdd: () => _toggleAdd(p),
-                          onOpen: () => context.push(AppRoutes.placeDetailOf(p.id)),
+                          onOpen: () =>
+                              context.push(AppRoutes.placeDetailOf(p.id)),
                         );
                       },
                     ),
@@ -143,7 +157,9 @@ class _PlacesScreenState extends ConsumerState<PlacesScreen> {
   void _toggleAdd(Place p) {
     final notifier = ref.read(tripSelectionProvider.notifier);
     final current = ref.read(tripSelectionProvider);
-    notifier.state = current.containsPlace(p) ? current.removePlace(p.id) : current.addPlace(p);
+    notifier.state = current.containsPlace(p)
+        ? current.removePlace(p.id)
+        : current.addPlace(p);
   }
 }
 
@@ -183,10 +199,12 @@ class _PlaceCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(place.name, style: Theme.of(context).textTheme.headlineSmall),
+                    child: Text(place.name,
+                        style: Theme.of(context).textTheme.headlineSmall),
                   ),
                   if (addedToTrip) ...[
-                    const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                    const Icon(Icons.check_circle,
+                        color: AppColors.primary, size: 20),
                     const SizedBox(width: AppSpacing.sm),
                   ],
                   if (place.rating != null)
@@ -195,7 +213,8 @@ class _PlaceCard extends StatelessWidget {
               ),
               if (place.category != null) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Text(place.category!, style: Theme.of(context).textTheme.bodySmall),
+                Text(place.category!,
+                    style: Theme.of(context).textTheme.bodySmall),
               ],
               if (place.detourKm != null) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -210,7 +229,8 @@ class _PlaceCard extends StatelessWidget {
                     'Detour adds ${formatDistance(place.detourKm!)}'
                     '${place.detourDurationMin != null ? ' · ${formatDuration(place.detourDurationMin!)}' : ''}'
                     '${place.detourAddedCost != null ? ' · ${formatCurrency(place.detourAddedCost!)}' : ''}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.info, fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.info, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],

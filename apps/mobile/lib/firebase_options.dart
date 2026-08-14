@@ -63,7 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1012767621520',
     projectId: 'route2go-da5c3',
     storageBucket: 'route2go-da5c3.firebasestorage.app',
-    iosClientId: '1012767621520-bo7hgmmmp0hn3hgn6a18pnvvmu3sd6ag.apps.googleusercontent.com',
+    iosClientId:
+        '1012767621520-bo7hgmmmp0hn3hgn6a18pnvvmu3sd6ag.apps.googleusercontent.com',
     iosBundleId: 'com.route2go.route2go',
   );
 }

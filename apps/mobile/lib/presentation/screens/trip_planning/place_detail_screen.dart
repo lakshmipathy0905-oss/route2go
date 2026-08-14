@@ -29,7 +29,8 @@ class PlaceDetailScreen extends ConsumerWidget {
           loading: () => const AppLoadingState(),
           error: (err, st) => AppErrorState(
             error: err,
-            onRetry: () => ref.read(placesNearRouteProvider.notifier).load(force: true),
+            onRetry: () =>
+                ref.read(placesNearRouteProvider.notifier).load(force: true),
           ),
           data: (near) {
             Place? place;
@@ -59,28 +60,36 @@ class PlaceDetailScreen extends ConsumerWidget {
                       width: double.infinity,
                       color: AppColors.primary.withValues(alpha: 0.1),
                       alignment: Alignment.center,
-                      child: Icon(Icons.photo_outlined, size: 44, color: AppColors.primary.withValues(alpha: 0.5)),
+                      child: Icon(Icons.photo_outlined,
+                          size: 44,
+                          color: AppColors.primary.withValues(alpha: 0.5)),
                     ),
                   ),
                 const SizedBox(height: AppSpacing.lg),
-                Text(selected.name, style: Theme.of(context).textTheme.headlineLarge),
+                Text(selected.name,
+                    style: Theme.of(context).textTheme.headlineLarge),
                 if (selected.category != null) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  Text(selected.category!, style: Theme.of(context).textTheme.bodySmall),
+                  Text(selected.category!,
+                      style: Theme.of(context).textTheme.bodySmall),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                if (selected.rating != null) StarRating(rating: selected.rating),
+                if (selected.rating != null)
+                  StarRating(rating: selected.rating),
                 if (selected.hours != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   _Row(icon: Icons.schedule, text: 'Hours: ${selected.hours}'),
                 ],
                 if (selected.entryFee != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  _Row(icon: Icons.payments_outlined, text: 'Entry fee: ${formatCurrency(selected.entryFee!)}'),
+                  _Row(
+                      icon: Icons.payments_outlined,
+                      text: 'Entry fee: ${formatCurrency(selected.entryFee!)}'),
                 ],
                 if (selected.description != null) ...[
                   const SizedBox(height: AppSpacing.lg),
-                  Text(selected.description!, style: Theme.of(context).textTheme.bodyLarge),
+                  Text(selected.description!,
+                      style: Theme.of(context).textTheme.bodyLarge),
                 ],
                 if (selected.detourKm != null) ...[
                   const SizedBox(height: AppSpacing.lg),
@@ -91,7 +100,8 @@ class PlaceDetailScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Real cost of this detour', style: Theme.of(context).textTheme.headlineSmall),
+                          Text('Real cost of this detour',
+                              style: Theme.of(context).textTheme.headlineSmall),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             '${formatDistance(selected.detourKm!)}'
@@ -100,7 +110,8 @@ class PlaceDetailScreen extends ConsumerWidget {
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
                           const SizedBox(height: AppSpacing.xs),
-                          const HintText('This is added on top of your current route cost — not free.'),
+                          const HintText(
+                              'This is added on top of your current route cost — not free.'),
                         ],
                       ),
                     ),
@@ -112,7 +123,8 @@ class PlaceDetailScreen extends ConsumerWidget {
                     Expanded(
                       child: FilledButton.icon(
                         onPressed: () {
-                          final notifier = ref.read(tripSelectionProvider.notifier);
+                          final notifier =
+                              ref.read(tripSelectionProvider.notifier);
                           final current = ref.read(tripSelectionProvider);
                           notifier.state = current.containsPlace(selected)
                               ? current.removePlace(selected.id)
@@ -156,12 +168,13 @@ class PlaceDetailScreen extends ConsumerWidget {
     try {
       await ref.read(favoritesRepositoryProvider).savePlace(id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved to Favorites.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Saved to Favorites.')));
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Could not save. Please try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not save. Please try again.')));
       }
     }
   }
@@ -185,7 +198,8 @@ class _Row extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: AppColors.textSecondary),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
+        Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
       ],
     );
   }

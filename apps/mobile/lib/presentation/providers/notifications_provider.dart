@@ -19,7 +19,16 @@ class NotificationsNotifier extends AsyncNotifier<List<NotificationItem>> {
     final items = state.valueOrNull;
     if (items == null) return;
     state = AsyncData([
-      for (final n in items) n.id == id ? NotificationItem(id: n.id, type: n.type, title: n.title, body: n.body, read: true, sentAt: n.sentAt) : n,
+      for (final n in items)
+        n.id == id
+            ? NotificationItem(
+                id: n.id,
+                type: n.type,
+                title: n.title,
+                body: n.body,
+                read: true,
+                sentAt: n.sentAt)
+            : n,
     ]);
   }
 
@@ -29,7 +38,13 @@ class NotificationsNotifier extends AsyncNotifier<List<NotificationItem>> {
     if (items == null) return;
     state = AsyncData([
       for (final n in items)
-        NotificationItem(id: n.id, type: n.type, title: n.title, body: n.body, read: true, sentAt: n.sentAt),
+        NotificationItem(
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            body: n.body,
+            read: true,
+            sentAt: n.sentAt),
     ]);
   }
 
@@ -48,7 +63,8 @@ class NotificationsNotifier extends AsyncNotifier<List<NotificationItem>> {
   }
 }
 
-final notificationsProvider = AsyncNotifierProvider<NotificationsNotifier, List<NotificationItem>>(
+final notificationsProvider =
+    AsyncNotifierProvider<NotificationsNotifier, List<NotificationItem>>(
   NotificationsNotifier.new,
 );
 
@@ -71,7 +87,8 @@ class NotificationPrefsNotifier extends Notifier<NotificationPrefs> {
     await set(_withCategory(state, category, value));
   }
 
-  NotificationPrefs _withCategory(NotificationPrefs prefs, String category, bool value) {
+  NotificationPrefs _withCategory(
+      NotificationPrefs prefs, String category, bool value) {
     switch (category) {
       case 'trip_reminder':
         return prefs.copyWith(tripReminder: value);
@@ -87,6 +104,7 @@ class NotificationPrefsNotifier extends Notifier<NotificationPrefs> {
   }
 }
 
-final notificationPrefsProvider = NotifierProvider<NotificationPrefsNotifier, NotificationPrefs>(
+final notificationPrefsProvider =
+    NotifierProvider<NotificationPrefsNotifier, NotificationPrefs>(
   NotificationPrefsNotifier.new,
 );

@@ -29,7 +29,8 @@ class BudgetTrackerScreen extends ConsumerWidget {
             final budget = result?.budgetStatus;
             if (budget == null) {
               return const AppEmptyState(
-                message: 'Add a budget on the Plan Trip screen to see your budget meter.',
+                message:
+                    'Add a budget on the Plan Trip screen to see your budget meter.',
                 icon: Icons.savings_outlined,
               );
             }
@@ -38,7 +39,8 @@ class BudgetTrackerScreen extends ConsumerWidget {
             final foodCost = itinerary != null
                 ? itinerary.days.fold<double>(
                     0,
-                    (sum, d) => sum +
+                    (sum, d) =>
+                        sum +
                         d.items
                             .where((i) => i.itemType == 'restaurant')
                             .fold<double>(0, (s, i) => s + i.estCost),
@@ -68,7 +70,8 @@ class BudgetTrackerScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Breakdown', style: Theme.of(context).textTheme.headlineSmall),
+                        Text('Breakdown',
+                            style: Theme.of(context).textTheme.headlineSmall),
                         const SizedBox(height: AppSpacing.md),
                         _row(context, 'Total budget', full.budgetTotal),
                         _row(context, 'Transport', budget.totalEstimated,
@@ -113,9 +116,13 @@ class BudgetTrackerScreen extends ConsumerWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.lightbulb_outline, size: 18, color: AppColors.accent),
+                          const Icon(Icons.lightbulb_outline,
+                              size: 18, color: AppColors.accent),
                           const SizedBox(width: AppSpacing.sm),
-                          Expanded(child: Text(s, style: Theme.of(context).textTheme.bodyLarge)),
+                          Expanded(
+                              child: Text(s,
+                                  style:
+                                      Theme.of(context).textTheme.bodyLarge)),
                         ],
                       ),
                     ),
@@ -149,7 +156,9 @@ class BudgetTrackerScreen extends ConsumerWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               Text(
-                isPercent ? '${value.toStringAsFixed(0)}%' : formatCurrency(value),
+                isPercent
+                    ? '${value.toStringAsFixed(0)}%'
+                    : formatCurrency(value),
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
@@ -158,7 +167,11 @@ class BudgetTrackerScreen extends ConsumerWidget {
             ],
           ),
           if (note != null)
-            Text(note, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.info)),
+            Text(note,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.info)),
         ],
       ),
     );

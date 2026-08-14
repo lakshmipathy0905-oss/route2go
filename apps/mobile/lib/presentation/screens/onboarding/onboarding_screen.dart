@@ -18,7 +18,9 @@ const _cards = [
       'Curated attractions within easy reach of your route.'),
   _OnboardingCard(Icons.hotel_outlined, 'Find stays within budget',
       'Stays that fit directly into your overall trip budget.'),
-  _OnboardingCard(Icons.calendar_month_outlined, 'Build your complete itinerary',
+  _OnboardingCard(
+      Icons.calendar_month_outlined,
+      'Build your complete itinerary',
       'A day-by-day plan generated automatically, fully editable.'),
   _OnboardingCard(Icons.navigation_outlined, 'Navigate and track expenses',
       'Confirm your plan, then navigate with a live budget meter.'),
@@ -61,7 +63,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 itemBuilder: (context, i) {
                   final card = _cards[i];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -72,7 +75,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             color: AppColors.accent.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(card.icon, size: 52, color: AppColors.accent),
+                          child: Icon(card.icon,
+                              size: 52, color: AppColors.accent),
                         ),
                         const SizedBox(height: AppSpacing.xxl),
                         Text(card.title,
@@ -120,7 +124,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     );
                   }
                 },
-                child: Text(_page == _cards.length - 1 ? 'Get Started' : 'Next'),
+                child:
+                    Text(_page == _cards.length - 1 ? 'Get Started' : 'Next'),
               ),
             ),
           ],

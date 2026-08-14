@@ -19,19 +19,23 @@ class FavoritesRepository extends BaseRepository {
   }
 
   Future<void> savePlace(String placeId) async {
-    await _apiClient.post('/favorites', body: {'action': 'save_place', 'place_id': placeId});
+    await _apiClient.post('/favorites',
+        body: {'action': 'save_place', 'place_id': placeId});
   }
 
   Future<void> unsavePlace(String placeId) async {
-    await _apiClient.post('/favorites', body: {'action': 'unsave_place', 'place_id': placeId});
+    await _apiClient.post('/favorites',
+        body: {'action': 'unsave_place', 'place_id': placeId});
   }
 
   Future<void> saveTrip(String tripId) async {
-    await _apiClient.post('/favorites', body: {'action': 'save_trip', 'trip_id': tripId});
+    await _apiClient
+        .post('/favorites', body: {'action': 'save_trip', 'trip_id': tripId});
   }
 
   Future<void> unsaveTrip(String tripId) async {
-    await _apiClient.post('/favorites', body: {'action': 'unsave_trip', 'trip_id': tripId});
+    await _apiClient
+        .post('/favorites', body: {'action': 'unsave_trip', 'trip_id': tripId});
   }
 }
 

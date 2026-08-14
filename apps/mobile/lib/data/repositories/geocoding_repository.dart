@@ -16,7 +16,8 @@ class GeocodingRepository extends BaseRepository {
   /// permission — this must only be called from the Live Trip entry point,
   /// after the in-app PermissionExplainer (Section 3.3). Never at launch.
   /// Returns the final granted permission.
-  Future<LocationPermission> requestLocationPermission({bool background = false}) async {
+  Future<LocationPermission> requestLocationPermission(
+      {bool background = false}) async {
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
@@ -68,9 +69,11 @@ class GeocodingRepository extends BaseRepository {
       }
       if (!await Geolocator.isLocationServiceEnabled()) return null;
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.medium),
       );
-      return GeoPlace(label: 'Current location', lat: pos.latitude, lng: pos.longitude);
+      return GeoPlace(
+          label: 'Current location', lat: pos.latitude, lng: pos.longitude);
     } catch (_) {
       return null;
     }

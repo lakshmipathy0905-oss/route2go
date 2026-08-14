@@ -18,7 +18,8 @@ class RouteOption {
     this.steps = const [],
   });
 
-  final String routeType; // fastest | cheapest | shortest | no_toll | recommended
+  final String
+      routeType; // fastest | cheapest | shortest | no_toll | recommended
   final double distanceKm;
   final int durationMin;
   final double? fuelCost;
@@ -85,7 +86,8 @@ class RouteOption {
       distanceKm: (json['distance_km'] as num).toDouble(),
       durationMin: (json['duration_min'] as num).toInt(),
       fuelCost: (json['fuel_cost'] as num?)?.toDouble(),
-      fuelCostConfidence: json['fuel_cost_confidence'] as String? ?? 'unavailable',
+      fuelCostConfidence:
+          json['fuel_cost_confidence'] as String? ?? 'unavailable',
       tollCost: (json['toll_cost'] as num?)?.toDouble() ?? 0,
       tollConfidence: json['toll_confidence'] as String? ?? 'unavailable',
       totalCost: (json['total_cost'] as num?)?.toDouble() ?? 0,
@@ -99,7 +101,8 @@ class RouteOption {
               .map(NavigationStep.fromJson)
               .toList()
           : const [],
-      fetchedAt: DateTime.tryParse(json['fetched_at'] as String? ?? '') ?? DateTime.now(),
+      fetchedAt: DateTime.tryParse(json['fetched_at'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 }

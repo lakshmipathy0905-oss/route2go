@@ -6,7 +6,8 @@ abstract class BaseRepository {
 
   Object? rawData(Map<String, dynamic> res) => res['data'];
 
-  List<T> parseList<T>(Map<String, dynamic> res, T Function(Map<String, dynamic>) fromJson) {
+  List<T> parseList<T>(
+      Map<String, dynamic> res, T Function(Map<String, dynamic>) fromJson) {
     final data = res['data'];
     if (data is List) {
       return data.map((e) => fromJson(e as Map<String, dynamic>)).toList();
@@ -15,7 +16,8 @@ abstract class BaseRepository {
     return const [];
   }
 
-  T parseObject<T>(Map<String, dynamic> res, T Function(Map<String, dynamic>) fromJson) {
+  T parseObject<T>(
+      Map<String, dynamic> res, T Function(Map<String, dynamic>) fromJson) {
     final data = res['data'];
     if (data is List) return fromJson(data.first as Map<String, dynamic>);
     return fromJson(data as Map<String, dynamic>);

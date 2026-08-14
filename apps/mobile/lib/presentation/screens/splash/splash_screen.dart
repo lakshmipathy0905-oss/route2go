@@ -38,12 +38,16 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(Icons.route_outlined, color: AppColors.primary, size: 44),
+              child: const Icon(Icons.route_outlined,
+                  color: AppColors.primary, size: 44),
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(
               'Route2Go',
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: AppSpacing.sm),
             const Text(

@@ -33,7 +33,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Search'),
-        actions: [if (_hasQuery) TextButton(onPressed: () => _ctrl.clear(), child: const Text('Clear'))],
+        actions: [
+          if (_hasQuery)
+            TextButton(
+                onPressed: () => _ctrl.clear(), child: const Text('Clear'))
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -64,7 +68,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     data: (results) {
                       if (_ctrl.text.trim().length < 2) {
                         return const AppEmptyState(
-                          message: 'Type at least 2 characters to search across your saved data.',
+                          message:
+                              'Type at least 2 characters to search across your saved data.',
                           icon: Icons.search,
                         );
                       }
@@ -80,9 +85,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         itemBuilder: (context, i) {
                           final r = results[i];
                           return ListTile(
-                            leading: Icon(_iconFor(r.kind), color: AppColors.primary),
+                            leading: Icon(_iconFor(r.kind),
+                                color: AppColors.primary),
                             title: Text(r.title),
-                            subtitle: Text('${_labelFor(r.kind)} · ${r.subtitle}',
+                            subtitle: Text(
+                                '${_labelFor(r.kind)} · ${r.subtitle}',
                                 style: Theme.of(context).textTheme.bodySmall),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => _open(r.kind, r.id),

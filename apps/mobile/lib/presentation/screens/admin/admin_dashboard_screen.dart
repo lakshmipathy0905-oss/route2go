@@ -60,10 +60,22 @@ class AdminDashboardScreen extends ConsumerWidget {
                 crossAxisSpacing: AppSpacing.md,
                 childAspectRatio: 1.6,
                 children: [
-                  _StatCard(icon: Icons.route_outlined, label: 'Trips', value: '${s.trips}'),
-                  _StatCard(icon: Icons.person_outline, label: 'Users', value: '${s.users}'),
-                  _StatCard(icon: Icons.support_agent, label: 'Open tickets', value: '${s.openSupportTickets}'),
-                  _StatCard(icon: Icons.monetization_on_outlined, label: 'Affiliate clicks', value: '${s.affiliateClicks}'),
+                  _StatCard(
+                      icon: Icons.route_outlined,
+                      label: 'Trips',
+                      value: '${s.trips}'),
+                  _StatCard(
+                      icon: Icons.person_outline,
+                      label: 'Users',
+                      value: '${s.users}'),
+                  _StatCard(
+                      icon: Icons.support_agent,
+                      label: 'Open tickets',
+                      value: '${s.openSupportTickets}'),
+                  _StatCard(
+                      icon: Icons.monetization_on_outlined,
+                      label: 'Affiliate clicks',
+                      value: '${s.affiliateClicks}'),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -128,7 +140,8 @@ class AdminLockedScreen extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.icon, required this.label, required this.value});
+  const _StatCard(
+      {required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -154,7 +167,11 @@ class _StatCard extends StatelessWidget {
 }
 
 class _ModuleTile extends StatelessWidget {
-  const _ModuleTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  const _ModuleTile(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.onTap});
 
   final IconData icon;
   final String title;

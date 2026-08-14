@@ -72,7 +72,8 @@ class ExpensesNotifier extends AsyncNotifier<List<Expense>> {
     final current = state.valueOrNull ?? const <Expense>[];
     final result = <String, double>{};
     for (final e in current) {
-      final value = estimateOnly || !e.hasActual ? e.estimatedAmount : e.actualAmount!;
+      final value =
+          estimateOnly || !e.hasActual ? e.estimatedAmount : e.actualAmount!;
       result[e.category] = (result[e.category] ?? 0) + value;
     }
     return result;

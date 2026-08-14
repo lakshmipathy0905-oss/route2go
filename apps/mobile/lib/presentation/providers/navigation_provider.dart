@@ -126,7 +126,8 @@ class NavigationNotifier extends Notifier<NavigationState> {
       _voice?.stop();
     });
 
-    _connectivitySub = ref.listen<AsyncValue<bool>>(connectivityProvider, (prev, next) {
+    _connectivitySub =
+        ref.listen<AsyncValue<bool>>(connectivityProvider, (prev, next) {
       final online = next.value ?? false;
       _onConnectivityChanged(online);
     });
@@ -311,7 +312,8 @@ class NavigationNotifier extends Notifier<NavigationState> {
   void _updateOffRoute(RouteProgress progress, LocationUpdate update) {
     final detector = _offRouteDetector;
     if (detector == null) return;
-    final offRoute = detector.update(distanceFromRouteM: progress.distanceFromRouteM);
+    final offRoute =
+        detector.update(distanceFromRouteM: progress.distanceFromRouteM);
 
     if (offRoute) {
       if (!_deviationPending) {
@@ -354,7 +356,8 @@ class NavigationNotifier extends Notifier<NavigationState> {
       }
 
       final newRoute = await _repo.fetchRoute(
-        origin: NavStop(label: 'Current location', lat: origin.lat, lng: origin.lng),
+        origin: NavStop(
+            label: 'Current location', lat: origin.lat, lng: origin.lng),
         destination: current.destination!,
         waypoints: current.waypoints,
       );
@@ -378,7 +381,8 @@ class NavigationNotifier extends Notifier<NavigationState> {
     } catch (_) {
       policy.requestFinished(success: false);
       if (_disposed) return;
-      state = state.copyWith(status: NavigationStatus.navigating, lastError: null);
+      state =
+          state.copyWith(status: NavigationStatus.navigating, lastError: null);
       _scheduleRerouteRetry();
     }
   }
@@ -402,7 +406,9 @@ class NavigationNotifier extends Notifier<NavigationState> {
 
   void _onConnectivityChanged(bool online) {
     state = state.copyWith(offline: !online);
-    if (online && _deviationPending && state.status != NavigationStatus.recalculating) {
+    if (online &&
+        _deviationPending &&
+        state.status != NavigationStatus.recalculating) {
       unawaited(_requestReroute());
     }
   }
@@ -464,7 +470,8 @@ class NavigationNotifier extends Notifier<NavigationState> {
   }
 
   void dismissError() {
-    state = state.copyWith(status: NavigationStatus.navigating, lastError: null);
+    state =
+        state.copyWith(status: NavigationStatus.navigating, lastError: null);
   }
 
   void end() {
@@ -478,6 +485,7 @@ class NavigationNotifier extends Notifier<NavigationState> {
   }
 }
 
-final navigationProvider = NotifierProvider<NavigationNotifier, NavigationState>(
+final navigationProvider =
+    NotifierProvider<NavigationNotifier, NavigationState>(
   NavigationNotifier.new,
 );

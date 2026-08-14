@@ -62,7 +62,8 @@ class FcmService {
       try {
         await _ref.read(notificationRepositoryProvider).registerFcmToken(token);
       } catch (_) {
-        debugPrint('FCM token registration deferred (will retry on next launch).');
+        debugPrint(
+            'FCM token registration deferred (will retry on next launch).');
       }
     } catch (_) {
       // Push is an enhancement; never throw out of init().

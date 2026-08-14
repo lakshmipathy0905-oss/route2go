@@ -25,10 +25,13 @@ class TripSelection {
   double get stayEstimatedCost =>
       stays.fold(0, (sum, s) => sum + (s.pricePerNight ?? 0));
 
-  bool get hasSelection => places.isNotEmpty || stays.isNotEmpty || foodStops.isNotEmpty;
+  bool get hasSelection =>
+      places.isNotEmpty || stays.isNotEmpty || foodStops.isNotEmpty;
 
-  TripSelection addPlace(Place p) =>
-      containsPlace(p) ? this : TripSelection(places: [...places, p], stays: stays, foodStops: foodStops);
+  TripSelection addPlace(Place p) => containsPlace(p)
+      ? this
+      : TripSelection(
+          places: [...places, p], stays: stays, foodStops: foodStops);
 
   TripSelection removePlace(String id) => TripSelection(
         places: places.where((p) => p.id != id).toList(),
@@ -36,8 +39,10 @@ class TripSelection {
         foodStops: foodStops,
       );
 
-  TripSelection addStay(Stay s) =>
-      containsStay(s) ? this : TripSelection(places: places, stays: [...stays, s], foodStops: foodStops);
+  TripSelection addStay(Stay s) => containsStay(s)
+      ? this
+      : TripSelection(
+          places: places, stays: [...stays, s], foodStops: foodStops);
 
   TripSelection removeStay(String id) => TripSelection(
         places: places,
@@ -49,7 +54,8 @@ class TripSelection {
   bool containsStay(Stay s) => stays.any((e) => e.id == s.id);
 }
 
-final tripSelectionProvider = StateProvider<TripSelection>((ref) => const TripSelection());
+final tripSelectionProvider =
+    StateProvider<TripSelection>((ref) => const TripSelection());
 
 /// Which route alternative is active for the downstream trip/navigation flow
 /// (confirm trip, live trip, budget). Defaults to 'recommended'; the route

@@ -74,6 +74,7 @@ class PlacesNotifier extends AsyncNotifier<PlacesNearRoute> {
   }
 }
 
-final placesNearRouteProvider = AsyncNotifierProvider<PlacesNotifier, PlacesNearRoute>(
+final placesNearRouteProvider =
+    AsyncNotifierProvider<PlacesNotifier, PlacesNearRoute>(
   PlacesNotifier.new,
 );

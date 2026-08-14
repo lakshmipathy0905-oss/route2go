@@ -22,7 +22,8 @@ class RecentLocation {
       label: json['label'] as String,
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
-      usedAt: DateTime.tryParse(json['used_at'] as String? ?? '') ?? DateTime.now(),
+      usedAt:
+          DateTime.tryParse(json['used_at'] as String? ?? '') ?? DateTime.now(),
     );
   }
 
@@ -69,7 +70,8 @@ class NotificationPrefs {
     );
   }
 
-  bool get anyEnabled => tripReminder || budgetWarning || tripStatus || marketing;
+  bool get anyEnabled =>
+      tripReminder || budgetWarning || tripStatus || marketing;
 
   Map<String, dynamic> toJson() => {
         'trip_reminder': tripReminder,

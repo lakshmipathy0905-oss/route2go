@@ -39,31 +39,40 @@ class AdminSupportScreen extends ConsumerWidget {
                 return Card(
                   margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: ExpansionTile(
-                    leading: Icon(_iconFor(t.status), color: _colorFor(t.status)),
+                    leading:
+                        Icon(_iconFor(t.status), color: _colorFor(t.status)),
                     title: Text(t.subject),
                     subtitle: Text('${t.status} · ${t.userId ?? 'anon'}'),
-                    childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+                    childrenPadding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
                     expandedCrossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.message, style: Theme.of(context).textTheme.bodyMedium),
+                      Text(t.message,
+                          style: Theme.of(context).textTheme.bodyMedium),
                       const SizedBox(height: AppSpacing.md),
                       if (canWrite)
                         DropdownButton<String>(
                           value: t.status,
                           isExpanded: true,
                           items: _statuses
-                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                              .map((s) =>
+                                  DropdownMenuItem(value: s, child: Text(s)))
                               .toList(),
                           onChanged: (next) {
                             if (next != null) {
-                              ref.read(adminSupportProvider.notifier).updateStatus(t.id, next);
+                              ref
+                                  .read(adminSupportProvider.notifier)
+                                  .updateStatus(t.id, next);
                             }
                           },
                         )
                       else
                         Text(
                           'Read-only — Super Admin role required to change status.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                     ],
                   ),

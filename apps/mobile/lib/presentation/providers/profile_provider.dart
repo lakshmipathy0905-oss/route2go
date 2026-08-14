@@ -34,7 +34,9 @@ class ProfileNotifier extends AsyncNotifier<Profile?> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () async {
-        final profile = await ref.read(profileRepositoryProvider).setAnalyticsOptOut(optOut);
+        final profile = await ref
+            .read(profileRepositoryProvider)
+            .setAnalyticsOptOut(optOut);
         await _applyAnalyticsState(profile);
         return profile;
       },

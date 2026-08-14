@@ -21,7 +21,8 @@ class LocationPickerScreen extends ConsumerStatefulWidget {
   final String target; // 'origin' | 'destination'
 
   @override
-  ConsumerState<LocationPickerScreen> createState() => _LocationPickerScreenState();
+  ConsumerState<LocationPickerScreen> createState() =>
+      _LocationPickerScreenState();
 }
 
 class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
@@ -48,7 +49,10 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.target == 'origin' ? 'Choose Starting Point' : 'Choose Destination')),
+      appBar: AppBar(
+          title: Text(widget.target == 'origin'
+              ? 'Choose Starting Point'
+              : 'Choose Destination')),
       body: SafeArea(
         child: Column(
           children: [
@@ -87,7 +91,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
               const Padding(
                 padding: EdgeInsets.all(AppSpacing.lg),
                 child: AppEmptyState(
-                  message: 'No places matched. Drag the map pin to set an exact spot instead.',
+                  message:
+                      'No places matched. Drag the map pin to set an exact spot instead.',
                   icon: Icons.location_off_outlined,
                 ),
               )
@@ -105,7 +110,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                   itemBuilder: (context, i) {
                     final r = _results[i];
                     return ListTile(
-                      leading: const Icon(Icons.place_outlined, color: AppColors.primary),
+                      leading: const Icon(Icons.place_outlined,
+                          color: AppColors.primary),
                       title: Text(r.label),
                       subtitle: r.subtitle != null ? Text(r.subtitle!) : null,
                       onTap: () => _confirm(r.label, r.lat, r.lng),
@@ -127,7 +133,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.route2go.route2go',
                     ),
                     MarkerLayer(
@@ -136,7 +143,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                           point: _pinCenter,
                           width: 44,
                           height: 44,
-                          child: const Icon(Icons.location_pin, size: 44, color: AppColors.error),
+                          child: const Icon(Icons.location_pin,
+                              size: 44, color: AppColors.error),
                         ),
                       ],
                     ),
@@ -152,7 +160,10 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _locating ? null : _useGps,
                       icon: _locating
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.my_location),
                       label: const Text('Use my location'),
                     ),
@@ -161,13 +172,16 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        final geo = await ref.read(geocodingRepositoryProvider).reverseGeocode(
+                        final geo = await ref
+                            .read(geocodingRepositoryProvider)
+                            .reverseGeocode(
                               _pinCenter.latitude,
                               _pinCenter.longitude,
                             );
                         if (mounted) {
                           _confirm(
-                            geo?.label ?? 'Selected point ${_pinCenter.latitude.toStringAsFixed(4)}, ${_pinCenter.longitude.toStringAsFixed(4)}',
+                            geo?.label ??
+                                'Selected point ${_pinCenter.latitude.toStringAsFixed(4)}, ${_pinCenter.longitude.toStringAsFixed(4)}',
                             _pinCenter.latitude,
                             _pinCenter.longitude,
                           );
@@ -215,7 +229,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
         _searched = true;
       });
       if (results.isNotEmpty) {
-        setState(() => _pinCenter = LatLng(results.first.lat, results.first.lng));
+        setState(
+            () => _pinCenter = LatLng(results.first.lat, results.first.lng));
       }
     } catch (e) {
       if (!mounted) return;
@@ -248,7 +263,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
     if (place == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Location is unavailable. You can search above or drag the map pin instead.'),
+          content: Text(
+              'Location is unavailable. You can search above or drag the map pin instead.'),
         ),
       );
       return;
@@ -263,7 +279,8 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
   void _confirm(String label, double lat, double lng) {
     final store = ref.read(preferencesStoreProvider).valueOrNull;
     if (store != null) {
-      store.upsertRecentLocation(RecentLocation(label: label, lat: lat, lng: lng, usedAt: DateTime.now()));
+      store.upsertRecentLocation(RecentLocation(
+          label: label, lat: lat, lng: lng, usedAt: DateTime.now()));
     }
     Navigator.pop(context, GeoPlace(label: label, lat: lat, lng: lng));
   }
@@ -285,7 +302,10 @@ class _RecentsSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: Text(
             'Search above, or drag the map pin to set an exact point.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.textSecondary),
           ),
         );
       }
@@ -293,8 +313,10 @@ class _RecentsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
-            child: Text('Recent locations', style: Theme.of(context).textTheme.headlineSmall),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
+            child: Text('Recent locations',
+                style: Theme.of(context).textTheme.headlineSmall),
           ),
           Container(
             constraints: const BoxConstraints(maxHeight: 150),

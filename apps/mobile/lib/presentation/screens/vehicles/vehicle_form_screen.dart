@@ -97,7 +97,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
             if (_fuelType == 'ev') ...[
               TextField(
                 controller: _efficiencyCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Efficiency (kWh/km)',
                   helperText: VehicleRanges.describe('ev'),
@@ -106,7 +107,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
               const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: _batteryCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Battery capacity (kWh)',
                 ),
@@ -114,7 +116,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
             ] else if (_fuelType == 'cng')
               TextField(
                 controller: _cngCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'CNG mileage (km/kg)',
                   helperText: VehicleRanges.describe('cng'),
@@ -123,7 +126,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
             else
               TextField(
                 controller: _mileageCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Mileage (km/l)',
                   helperText: VehicleRanges.describe(_fuelType),
@@ -145,13 +149,16 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                   color: AppColors.error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
-                child: Text(_formError!, style: const TextStyle(color: AppColors.error)),
+                child: Text(_formError!,
+                    style: const TextStyle(color: AppColors.error)),
               ),
             ],
             const SizedBox(height: AppSpacing.xxl),
             ElevatedButton(
               onPressed: _saving ? null : _onSave,
-              child: Text(_saving ? 'Saving…' : (_isEditing ? 'Save Changes' : 'Add Vehicle')),
+              child: Text(_saving
+                  ? 'Saving…'
+                  : (_isEditing ? 'Save Changes' : 'Add Vehicle')),
             ),
           ],
         ),
@@ -217,7 +224,8 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _formError = 'Could not save the vehicle. Please try again.');
+        setState(
+            () => _formError = 'Could not save the vehicle. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -229,9 +237,11 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   String? _applyValidation() {
     switch (_fuelType) {
       case 'petrol':
-        return _validateRange(_mileageValue, VehicleRanges.petrolMileage, 'petrol');
+        return _validateRange(
+            _mileageValue, VehicleRanges.petrolMileage, 'petrol');
       case 'diesel':
-        return _validateRange(_mileageValue, VehicleRanges.dieselMileage, 'diesel');
+        return _validateRange(
+            _mileageValue, VehicleRanges.dieselMileage, 'diesel');
       case 'cng':
         return _validateRange(_cngValue, VehicleRanges.cngMileage, 'cng');
       case 'ev':

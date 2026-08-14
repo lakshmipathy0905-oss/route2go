@@ -47,7 +47,11 @@ void main() {
         const LatLng(0, 1),
         const LatLng(1, 1),
       ]);
-      expect(len, closeTo(GeoMath.haversineKm(const LatLng(0, 0), const LatLng(0, 1)) * 2, 1));
+      expect(
+          len,
+          closeTo(
+              GeoMath.haversineKm(const LatLng(0, 0), const LatLng(0, 1)) * 2,
+              1));
     });
   });
 
@@ -88,7 +92,8 @@ void main() {
     });
 
     test('rejects a degenerate polyline', () {
-      expect(() => RouteProgressEngine([const LatLng(0, 0)]), throwsAssertionError);
+      expect(() => RouteProgressEngine([const LatLng(0, 0)]),
+          throwsAssertionError);
     });
   });
 
@@ -107,7 +112,8 @@ void main() {
         now: DateTime(2026, 1, 1, 12, 0),
       );
       expect(p.remainingDurationMin, 68); // 90 * 0.75 = 67.5 -> rounds to 68
-      expect(p.eta(now: DateTime(2026, 1, 1, 12, 0)), DateTime(2026, 1, 1, 13, 8));
+      expect(
+          p.eta(now: DateTime(2026, 1, 1, 12, 0)), DateTime(2026, 1, 1, 13, 8));
     });
 
     test('arrival at end yields zero remaining minutes', () {
@@ -161,12 +167,14 @@ void main() {
           nearestLng: 0,
         );
 
-    test('selects the first upcoming maneuver before any distance travelled', () {
+    test('selects the first upcoming maneuver before any distance travelled',
+        () {
       expect(engine.nextManeuver(at(0))!.instruction, 'Turn left onto Main St');
     });
 
     test('advances to the next maneuver after passing the first', () {
-      expect(engine.nextManeuver(at(0.3))!.instruction, 'Turn right onto Oak Ave');
+      expect(
+          engine.nextManeuver(at(0.3))!.instruction, 'Turn right onto Oak Ave');
     });
 
     test('returns null after all maneuvers are passed', () {
@@ -210,7 +218,8 @@ void main() {
       expect(d.update(distanceFromRouteM: 500), isFalse);
     });
 
-    test('confirms off-route after sustained deviation beyond the threshold', () {
+    test('confirms off-route after sustained deviation beyond the threshold',
+        () {
       final d = build();
       d.update(distanceFromRouteM: 500);
       d.update(distanceFromRouteM: 500);
@@ -234,7 +243,8 @@ void main() {
       d.update(distanceFromRouteM: 500); // off-route confirmed
       d.update(distanceFromRouteM: 50); // recovery sample 1
       expect(d.isOffRoute, isTrue); // still off-route
-      expect(d.update(distanceFromRouteM: 50), isFalse); // recovery sample 2 clears it
+      expect(d.update(distanceFromRouteM: 50),
+          isFalse); // recovery sample 2 clears it
       expect(d.isOffRoute, isFalse);
     });
 
@@ -273,7 +283,8 @@ void main() {
 
     test('applies exponential backoff after failures', () {
       final now = DateTime(2026, 1, 1, 12, 0);
-      final p = ReroutePolicy(backoffBase: const Duration(seconds: 5), clock: () => now);
+      final p = ReroutePolicy(
+          backoffBase: const Duration(seconds: 5), clock: () => now);
       p.requestStarted();
       p.requestFinished(success: false);
       // First failure backs off by backoffBase.

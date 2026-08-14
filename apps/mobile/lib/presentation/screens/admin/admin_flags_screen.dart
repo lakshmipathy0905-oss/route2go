@@ -37,7 +37,10 @@ class AdminFlagsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: Text(
                       'Read-only — Super Admin role required to change flags.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
                     ),
                   ),
                 ...list.map((f) => Card(
@@ -45,7 +48,9 @@ class AdminFlagsScreen extends ConsumerWidget {
                       child: SwitchListTile(
                         value: f.enabled,
                         onChanged: canWrite
-                            ? (v) => ref.read(adminFlagsProvider.notifier).setFlag(f.key, v)
+                            ? (v) => ref
+                                .read(adminFlagsProvider.notifier)
+                                .setFlag(f.key, v)
                             : null,
                         title: Text(f.key),
                         subtitle: Text(f.description),

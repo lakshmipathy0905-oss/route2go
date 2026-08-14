@@ -15,7 +15,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
   } on FirebaseException catch (e) {
     if (e.code != 'duplicate-app') {
       rethrow; // any other Firebase init failure should still surface, not be swallowed

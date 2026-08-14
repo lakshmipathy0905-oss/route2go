@@ -29,7 +29,8 @@ class VehicleGarageScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.directions_car_outlined, size: 44, color: AppColors.textSecondary),
+                      Icon(Icons.directions_car_outlined,
+                          size: 44, color: AppColors.textSecondary),
                       SizedBox(height: AppSpacing.md),
                       Text(
                         'Save your vehicles to pre-fill mileage and fuel type when planning.',
@@ -67,7 +68,8 @@ class VehicleGarageScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: vehicles.when(
-          loading: () => const AppLoadingState(message: 'Loading your vehicles…'),
+          loading: () =>
+              const AppLoadingState(message: 'Loading your vehicles…'),
           error: (err, st) => AppErrorState(
             error: err,
             onRetry: () => ref.read(vehicleListProvider.notifier).refresh(),
@@ -87,7 +89,9 @@ class VehicleGarageScreen extends ConsumerWidget {
                   vehicle: v,
                   onSetDefault: v.isDefault
                       ? null
-                      : () => ref.read(vehicleListProvider.notifier).setDefault(v.id),
+                      : () => ref
+                          .read(vehicleListProvider.notifier)
+                          .setDefault(v.id),
                   onEdit: () => context.push(AppRoutes.vehicleEditOf(v.id)),
                   onDelete: () => _confirmDelete(context, ref, v),
                 );
@@ -99,14 +103,18 @@ class VehicleGarageScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Vehicle v) async {
+  Future<void> _confirmDelete(
+      BuildContext context, WidgetRef ref, Vehicle v) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete vehicle?'),
-        content: Text('"${v.label}" will be removed from your garage. Trips already planned remain unchanged.'),
+        content: Text(
+            '"${v.label}" will be removed from your garage. Trips already planned remain unchanged.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(context, true),
@@ -119,7 +127,8 @@ class VehicleGarageScreen extends ConsumerWidget {
       await ref.read(vehicleListProvider.notifier).remove(v.id);
       if (context.mounted && ref.read(vehicleListProvider).hasError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not delete the vehicle. Please try again.')),
+          const SnackBar(
+              content: Text('Could not delete the vehicle. Please try again.')),
         );
       }
     }
@@ -138,14 +147,19 @@ class _VehicleEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.directions_car_outlined, size: 48, color: AppColors.textSecondary),
+            const Icon(Icons.directions_car_outlined,
+                size: 48, color: AppColors.textSecondary),
             const SizedBox(height: AppSpacing.md),
-            Text('Add your first vehicle', style: Theme.of(context).textTheme.headlineMedium),
+            Text('Add your first vehicle',
+                style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Save fuel type and mileage once, and reuse it for every trip.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.xl),
             ElevatedButton.icon(
@@ -197,7 +211,9 @@ class _VehicleCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  vehicle.fuelType == 'ev' ? Icons.electric_car : Icons.directions_car_outlined,
+                  vehicle.fuelType == 'ev'
+                      ? Icons.electric_car
+                      : Icons.directions_car_outlined,
                   color: AppColors.primary,
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -208,11 +224,14 @@ class _VehicleCard extends StatelessWidget {
                       Row(
                         children: [
                           Flexible(
-                            child: Text(vehicle.label, style: Theme.of(context).textTheme.headlineSmall),
+                            child: Text(vehicle.label,
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall),
                           ),
                           if (vehicle.isDefault) ...[
                             const SizedBox(width: AppSpacing.sm),
-                            const Icon(Icons.star, size: 16, color: AppColors.warning),
+                            const Icon(Icons.star,
+                                size: 16, color: AppColors.warning),
                           ],
                         ],
                       ),
@@ -229,7 +248,9 @@ class _VehicleCard extends StatelessWidget {
             Row(
               children: [
                 if (!vehicle.isDefault && onSetDefault != null)
-                  TextButton(onPressed: onSetDefault, child: const Text('Make default')),
+                  TextButton(
+                      onPressed: onSetDefault,
+                      child: const Text('Make default')),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
@@ -237,7 +258,8 @@ class _VehicleCard extends StatelessWidget {
                   onPressed: onEdit,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  icon:
+                      const Icon(Icons.delete_outline, color: AppColors.error),
                   tooltip: 'Delete vehicle',
                   onPressed: onDelete,
                 ),
