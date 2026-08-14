@@ -334,8 +334,8 @@ class NavigationNotifier extends Notifier<NavigationState> {
   }
 
   /// Reroutes from the CURRENT GPS position through any added stops to the
-  /// (possibly changed) destination. Guarded by [ReroutePolicy] so a public
-  /// OSRM server is never hammered; deduplicates in-flight requests.
+  /// (possibly changed) destination. Guarded by [ReroutePolicy] so the routing
+  /// provider is never hammered; deduplicates in-flight requests.
   Future<void> _requestReroute() async {
     final policy = _reroutePolicy;
     final current = state;

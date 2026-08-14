@@ -27,8 +27,8 @@ screens/features to Claude Code, following the same patterns already in this rep
 
 1. A Firebase project (Auth providers enabled: Google, Email/Password, Phone)
 2. A Supabase project (Postgres + Edge Functions)
-3. Optionally, a real routing provider (OSRM-compatible host, or Google/Mapbox) —
-   the app works with the deterministic mock provider until you add one
+3. Optionally, a real routing provider (Valhalla — self-hosted or a dev demo)
+   — the app works with the deterministic mock provider until you add one
 
 ## Setup — exact commands
 
@@ -51,7 +51,7 @@ supabase functions deploy trip-calculate
 # 4. Set required secrets on the deployed function
 supabase secrets set FIREBASE_PROJECT_ID=your-project-id
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-# ROUTING_PROVIDER_BASE_URL / ROUTING_PROVIDER_KEY optional — mock adapter used if unset
+# VALHALLA_BASE_URL / ROUTING_PROVIDER_BASE_URL / ROUTING_PROVIDER_KEY optional — mock adapter used if unset
 
 # 5. Run the app, pointing it at your deployed function + Supabase project
 cd apps/mobile

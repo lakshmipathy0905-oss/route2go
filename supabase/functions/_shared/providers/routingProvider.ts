@@ -1,7 +1,20 @@
 // Routing provider abstraction. Feature code (trip-calculate, route-nav) only
 // ever talks to this interface — never to a specific vendor SDK — so swapping
-// providers (OSRM, GraphHopper, Google Directions, Mapbox) never requires a
+// providers (Valhalla, GraphHopper, Google Directions, Mapbox) never requires a
 // rewrite of business logic.
+//
+// Production adapter: Valhalla (`ValhallaRoutingProvider`). Activated by
+// setting VALHALLA_BASE_URL (preferred) or the legacy ROUTING_PROVIDER_BASE_URL.
+// A deterministic mock is used when neither is configured (local dev/tests) and
+// is clearly labelled `mock-dev-fixture` so it is never mistaken for real data.
+
+import {
+  buildValhallaRequest,
+  collectValhallaRoutes,
+  isNoRouteError,
+  labelValhallaRoutes,
+  type RawValhallaRoute,
+} from "./valhalla.ts";
 
 export interface RoutePoint {
   label: string;
@@ -18,9 +31,10 @@ export interface RouteSegment {
 }
 
 /** One turn-by-turn instruction extracted from the provider's response.
- * `instruction` is a human sentence built from provider data (maneuver type +
- * modifier + road name), never hard-coded per-route. `distanceKm` is the
- * distance remaining to the maneuver point (from the previous maneuver). */
+ * `instruction` is taken verbatim from the provider (Valhalla returns a
+ * ready-to-display sentence such as "Drive east."); it is never hard-coded or
+ * fabricated per-route. `distanceKm` is the distance remaining to the maneuver
+ * point (from the previous maneuver). */
 export interface RouteStep {
   instruction: string;
   maneuverType: string; // depart | turn | new name | continue | arrive | roundabout | ...
@@ -114,12 +128,16 @@ class MockRoutingProvider implements RoutingProvider {
 }
 
 /**
- * OSRM-compatible adapter. Activated by setting ROUTING_PROVIDER_BASE_URL
- * (e.g. the free public demo https://router.project-osrm.org or your own
- * instance). An optional ROUTING_PROVIDER_KEY is sent as a Bearer token for
- * providers that require one.
+ * Valhalla adapter. Activated by setting VALHALLA_BASE_URL (or the legacy
+ * ROUTING_PROVIDER_BASE_URL). The request/response translation lives in
+ * ./valhalla.ts; this class owns the HTTP call and the error mapping.
+ *
+ * The public demo endpoint (https://valhalla1.openstreetmap.de) is for dev/test
+ * only — production must point at a self-hosted instance (see infra/valhalla).
+ * An optional ROUTING_PROVIDER_KEY is sent as a Bearer token for instances that
+ * require one.
  */
-class HttpRoutingProvider implements RoutingProvider {
+class ValhallaRoutingProvider implements RoutingProvider {
   constructor(private baseUrl: string, private apiKey: string) {}
 
   async getRouteAlternatives(params: {
@@ -128,123 +146,93 @@ class HttpRoutingProvider implements RoutingProvider {
     waypoints?: RoutePoint[];
     roundTrip: boolean;
   }): Promise<RouteAlternative[]> {
-    const path = [params.origin, ...(params.waypoints ?? []), params.destination];
-    const coords = path.map((p) => `${p.lng},${p.lat}`).join(";");
-    const url = `${this.baseUrl}/route/v1/driving/${coords}?alternatives=true&overview=full&geometries=geojson&steps=true`;
-    const res = await fetch(url, {
-      headers: this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {},
-    });
-    if (!res.ok) {
-      throw new Error(`Routing provider responded with ${res.status}`);
+    const base = this.baseUrl.replace(/\/+$/, "");
+
+    // Conservative HTTP policy: a short per-attempt timeout and at most one
+    // retry on transient failures (network errors and 5xx only — never on 4xx
+    // input errors). We deliberately do not hammer the server: two attempts
+    // with a small gap, then a clear failure that surfaces as 502.
+    const postRoute = async (
+      useTolls: boolean,
+      alternates: number,
+    ): Promise<RawValhallaRoute> => {
+      const attempts = useTolls ? 2 : 1; // main retries once; toll-free stays fast
+      const body = JSON.stringify(
+        buildValhallaRequest({ ...params, useTolls, alternates }),
+      );
+
+      let res: Response | null = null;
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 500));
+        try {
+          res = await fetch(`${base}/route`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+            },
+            body,
+            signal: AbortSignal.timeout(10_000),
+          });
+        } catch (err) {
+          // Timeout (AbortError) or a network failure — retryable.
+          lastError = err;
+          continue;
+        }
+        // 5xx is transient; 4xx (including Valhalla no-route codes) must not
+        // be retried — re-issuing a bad request only wastes the server.
+        if (res.status >= 500 && res.status < 600 && attempt < attempts - 1) {
+          lastError = new Error(`Valhalla returned ${res.status}`);
+          continue;
+        }
+        break;
+      }
+      if (!res) {
+        throw lastError instanceof Error
+          ? lastError
+          : new Error("Valhalla routing request failed");
+      }
+      if (!res.ok) {
+        const bodyJson = await res.json().catch(() => null);
+        if (isNoRouteError(bodyJson)) {
+          // Legitimately no drivable route -> caller maps to 404 NO_ROUTE_FOUND.
+          return { trip: undefined };
+        }
+        throw new Error(`Valhalla routing provider responded with ${res.status}`);
+      }
+      const json = (await res.json()) as RawValhallaRoute;
+      if (!json || typeof json !== "object" || !json.trip) {
+        throw new Error("Valhalla returned an unexpected response shape.");
+      }
+      return json;
+    };
+
+    // Tolls-allowed profile: primary + up to 3 alternatives. A failure here is
+    // fatal (the caller turns it into 502 ROUTE_PROVIDER_UNAVAILABLE).
+    const main = await postRoute(true, 3);
+
+    // Toll-avoiding profile for a genuine "no_toll" option. A failure here must
+    // never kill the whole trip calculation — we just omit that option.
+    let noToll: RawValhallaRoute | null = null;
+    try {
+      noToll = await postRoute(false, 1);
+    } catch (err) {
+      console.error("valhalla no-toll request failed; skipping no_toll option", err);
     }
-    const body = await res.json();
-    if (!body.routes || body.routes.length === 0) {
-      return [];
-    }
 
-    // Map provider routes -> our RouteAlternative shape. OSRM returns one "best"
-    // route plus alternatives; we label them by characteristic rather than
-    // assuming the provider labels them the way our UI needs.
-    const labels: RouteAlternative["routeType"][] = ["recommended", "fastest", "shortest", "cheapest", "no_toll"];
-    return body.routes.slice(0, 5).map((r: any, idx: number) => {
-      const legs = r.legs ?? [];
-      const steps = legs.flatMap((leg: any) => parseOsrmSteps(leg.steps ?? []));
-      return {
-        routeType: labels[idx] ?? "recommended",
-        distanceKm: Math.round((r.distance / 1000) * 10) / 10,
-        durationMin: Math.round(r.duration / 60),
-        geometry: r.geometry,
-        segments: legs.flatMap((leg: any) =>
-          (leg.steps ?? []).map((s: any) => ({
-            startLat: s.maneuver?.location?.[1] ?? params.origin.lat,
-            startLng: s.maneuver?.location?.[0] ?? params.origin.lng,
-            endLat: s.maneuver?.location?.[1] ?? params.destination.lat,
-            endLng: s.maneuver?.location?.[0] ?? params.destination.lng,
-            distanceKm: Math.round(((s.distance ?? 0) / 1000) * 10) / 10,
-          }))
-        ),
-        steps,
-        provider: "osrm-compatible",
-      };
-    });
-  }
-}
-
-/** Converts raw OSRM steps into our RouteStep shape with a human instruction.
- * All text is derived from the provider's maneuver type/modifier/road name —
- * nothing is fabricated or hard-coded per route. */
-function parseOsrmSteps(rawSteps: any[]): RouteStep[] {
-  const steps: RouteStep[] = [];
-  for (const s of rawSteps) {
-    const type = s.maneuver?.type ?? "continue";
-    const modifier = s.maneuver?.modifier ?? null;
-    const name = s.name && s.name.length > 0 ? s.name : null;
-    const location = s.maneuver?.location ?? [0, 0];
-    steps.push({
-      instruction: instructionFor(type, modifier, name),
-      maneuverType: type,
-      modifier,
-      name,
-      distanceKm: Math.round(((s.distance ?? 0) / 1000) * 10) / 10,
-      durationMin: Math.round((s.duration ?? 0) / 60),
-      lat: location[1],
-      lng: location[0],
-    });
-  }
-  return steps;
-}
-
-/** Builds a spoken/natural instruction from OSRM maneuver semantics. */
-function instructionFor(type: string, modifier: string | null, name: string | null): string {
-  const m = modifier ?? "";
-  const onto = name ? ` onto ${name}` : "";
-  switch (type) {
-    case "depart":
-      return name ? `Head ${m || "straight"} on ${name}` : "Head out on your route";
-    case "arrive":
-      return "You have arrived at your destination";
-    case "turn":
-      return `Turn ${m || "left"}${onto}`;
-    case "continue":
-      return m && m !== "straight" ? `Continue ${m}${onto}` : `Continue${onto}`;
-    case "new name":
-      return name ? `Continue onto ${name}` : "Continue onto the next road";
-    case "merge":
-      return `Merge ${m}${onto}`.replace(/\s+/g, " ").trim();
-    case "on ramp":
-      return name ? `Take the ramp onto ${name}` : "Take the ramp";
-    case "off ramp":
-      return name ? `Take the exit for ${name}` : "Take the exit";
-    case "fork":
-      return `Keep ${m || "straight"}${onto}`;
-    case "end of road":
-      return `At the end of the road, turn ${m || "left"}${onto}`;
-    case "roundabout":
-      return name ? `Enter the roundabout and take the ${m || "second"} exit onto ${name}` : `Enter the roundabout and take the ${m || "second"} exit`;
-    case "roundabout turn":
-      return name ? `At the roundabout, take the ${m || "second"} exit onto ${name}` : `At the roundabout, take the ${m || "second"} exit`;
-    case "exit roundabout":
-      return name ? `Exit the roundabout onto ${name}` : "Exit the roundabout";
-    case "rotary":
-      return name ? `Enter the rotary and take the ${m || "second"} exit onto ${name}` : `Enter the rotary and take the ${m || "second"} exit`;
-    case "exit rotary":
-      return name ? `Exit the rotary onto ${name}` : "Exit the rotary";
-    case "uturn":
-      return "Make a U-turn";
-    case "notification":
-      return name ? `Continue on ${name}` : "Continue straight";
-    default:
-      return name ? `Continue on ${name}` : "Continue straight";
+    return labelValhallaRoutes(collectValhallaRoutes(main, noToll));
   }
 }
 
 export function getRoutingProvider(): RoutingProvider {
-  const baseUrl = Deno.env.get("ROUTING_PROVIDER_BASE_URL");
-  const apiKey = Deno.env.get("ROUTING_PROVIDER_KEY") ?? "";
+  const baseUrl = Deno.env.get("VALHALLA_BASE_URL") ??
+    Deno.env.get("ROUTING_PROVIDER_BASE_URL");
   if (!baseUrl) {
     return new MockRoutingProvider();
   }
-  return new HttpRoutingProvider(baseUrl, apiKey);
+  const apiKey = Deno.env.get("ROUTING_PROVIDER_KEY") ?? "";
+  return new ValhallaRoutingProvider(baseUrl, apiKey);
 }
 
 function haversineKm(a: RoutePoint, b: RoutePoint): number {

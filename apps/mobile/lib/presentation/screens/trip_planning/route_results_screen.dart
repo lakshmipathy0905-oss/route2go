@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../providers/trip_planning_provider.dart';
@@ -165,7 +166,7 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
       routes.any((r) => r.tollConfidence == 'estimated');
 }
 
-class _RouteMapCard extends StatefulWidget {
+class _RouteMapCard extends ConsumerStatefulWidget {
   const _RouteMapCard({
     required this.routes,
     required this.selectedType,
@@ -181,10 +182,10 @@ class _RouteMapCard extends StatefulWidget {
   final List<LatLng> Function(List<List<double>>) toLatLng;
 
   @override
-  State<_RouteMapCard> createState() => _RouteMapCardState();
+  ConsumerState<_RouteMapCard> createState() => _RouteMapCardState();
 }
 
-class _RouteMapCardState extends State<_RouteMapCard> {
+class _RouteMapCardState extends ConsumerState<_RouteMapCard> {
   bool _fitted = false;
 
   @override
@@ -209,6 +210,7 @@ class _RouteMapCardState extends State<_RouteMapCard> {
 
   @override
   Widget build(BuildContext context) {
+    final tileConfig = ref.watch(mapTileConfigProvider);
     final routes = widget.routes;
     final selected =
         routes.where((r) => r.routeType == widget.selectedType).firstOrNull;
@@ -255,8 +257,9 @@ class _RouteMapCardState extends State<_RouteMapCard> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.route2go.route2go',
+                  urlTemplate: tileConfig.urlTemplate,
+                  tileProvider: tileConfig.buildTileProvider(),
+                  userAgentPackageName: tileConfig.userAgentPackageName,
                 ),
                 PolylineLayer(
                   polylines: [
@@ -298,7 +301,7 @@ class _RouteMapCardState extends State<_RouteMapCard> {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Text(
-              'Map data © OpenStreetMap contributors',
+              tileConfig.attribution,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),

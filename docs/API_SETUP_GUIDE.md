@@ -160,27 +160,34 @@ app still works — email just stays off.
 ## STEP 4 — (optional) Real worldwide routing
 
 Route2Go ships with a mock route provider so it runs out of the box. To get
-**real** worldwide routes, point it at any OSRM-compatible server.
+**real** worldwide routes, point it at a Valhalla routing server.
 
-Free options:
-- **OSRM public demo** — https://router.project-osrm.org — free, ~50k
-  requests/day, for development/non-commercial use only.
-- **Self-hosted OSRM** — run on your own machine/server for production.
+Options:
+- **Valhalla public demo** — `https://valhalla1.openstreetmap.de` — free, for
+  development/non-commercial use only (rate-limited and unsupported).
+- **Self-hosted Valhalla** — for production. See `infra/valhalla/` and
+  `docs/VALHALLA_SETUP.md` for the Docker setup.
 
-Set it via Supabase function secrets (server-side) or the app env for local:
+Set it via Supabase function secrets (server-side) or the local `.env`:
 
 ```
-supabase secrets set ROUTING_PROVIDER_BASE_URL=https://router.project-osrm.org
+supabase secrets set VALHALLA_BASE_URL=https://valhalla1.openstreetmap.de
 ```
 
-The routing function in `supabase/functions/_shared/providers/routingProvider.ts`
-automatically switches from mock to live when this is set.
+`getRoutingProvider()` in
+`supabase/functions/_shared/providers/routingProvider.ts` prefers
+`VALHALLA_BASE_URL`, falls back to the legacy `ROUTING_PROVIDER_BASE_URL`, and
+uses the mock when neither is set.
 
 ### If it fails
-- Routes still look mock/straight-line → `ROUTING_PROVIDER_BASE_URL` is not
-  set on the deployed functions (re-run the `supabase secrets set` above).
-- 502 from trip-calculate → the routing URL is unreachable or returns
-  non-OSRM responses.
+- Routes still look mock/straight-line → `VALHALLA_BASE_URL` is not set on
+  the deployed functions (re-run the `supabase secrets set` above).
+- 502 from trip-calculate → the routing URL is unreachable, or the request is
+  invalid. Route2Go maps Valhalla "no route" errors to a clean
+  `404 NO_ROUTE_FOUND`, so a 502 means a real transport/other error.
+- `https://valhalla.openstreetmap.de` returns 405 → that root serves the
+  FOSSGIS demo app; use `valhalla1.openstreetmap.de` (dev only) or your own
+  instance.
 
 ---
 
@@ -221,7 +228,7 @@ Step 2. For release builds use `flutter build apk --dart-define=...` and
 | Supabase anon key | Supabase console → API keys | `--dart-define=SUPABASE_ANON_KEY` | No |
 | Supabase service-role key | Supabase console → API keys | function secret `SUPABASE_SERVICE_ROLE_KEY` | **YES — server only** |
 | Email provider key | Resend/Brevo dashboard | function secret `EMAIL_PROVIDER_KEY` | **YES — server only** |
-| Routing URL | OSRM / self-hosted | function secret `ROUTING_PROVIDER_BASE_URL` | No |
+| Routing URL | Valhalla / self-hosted | function secret `VALHALLA_BASE_URL` (legacy: `ROUTING_PROVIDER_BASE_URL`) | No |
 
 ## Golden rules (never break these)
 

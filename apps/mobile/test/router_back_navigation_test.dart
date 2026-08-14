@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:route2go/core/config/map_tile_config.dart';
 import 'package:route2go/core/router/app_router.dart';
 import 'package:route2go/core/theme/app_theme.dart';
 import 'package:route2go/presentation/providers/auth_provider.dart';
@@ -12,6 +13,14 @@ void main() {
     final overrides = <Override>[
       // Guest mode (authState == null). No Firebase, no network needed.
       authStateProvider.overrideWith((ref) => Stream.value(null)),
+      // Offline map tiles: flutter_test's mock HttpClient answers every
+      // request with 400, which the default NetworkTileProvider would
+      // surface as tile errors. A transparent provider keeps the map laying
+      // out with zero network.
+      mapTileConfigProvider.overrideWithValue(MapTileConfig(
+        urlTemplate: 'https://offline.invalid/{z}/{x}/{y}.png',
+        tileProviderFactory: TransparentTileProvider.new,
+      )),
     ];
 
     await tester.pumpWidget(
@@ -54,8 +63,14 @@ void main() {
     expect(topPath(router), AppRoutes.planTrip,
         reason: 'Plan a Trip CTA must push, keeping home beneath it');
 
-    // Plan Trip -> location picker via the real Starting point field.
-    await tester.tap(find.text('Starting point'));
+    // Plan Trip -> location picker via the real Starting point field. The
+    // "Starting point" label is InputDecorator floating-label text (not a hit
+    // target), so we tap the InkWell that owns the field — the same gesture a
+    // real user performs.
+    await tester.tap(find.ancestor(
+      of: find.text('Starting point'),
+      matching: find.byType(InkWell),
+    ));
     await tester.pumpAndSettle();
     expect(topPath(router), AppRoutes.locationPicker,
         reason: 'Starting point field must push the location picker');

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/config/map_tile_config.dart';
 import '../../../core/local/preferences_store.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/geocoding_repository.dart';
@@ -48,6 +49,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tileConfig = ref.watch(mapTileConfigProvider);
     return Scaffold(
       appBar: AppBar(
           title: Text(widget.target == 'origin'
@@ -133,9 +135,9 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.route2go.route2go',
+                      urlTemplate: tileConfig.urlTemplate,
+                      tileProvider: tileConfig.buildTileProvider(),
+                      userAgentPackageName: tileConfig.userAgentPackageName,
                     ),
                     MarkerLayer(
                       markers: [

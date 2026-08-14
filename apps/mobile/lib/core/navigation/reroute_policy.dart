@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 /// Guards reroute requests so live navigation never hammers the routing
-/// provider (a public OSRM server may rate-limit).
+/// provider (a self-hosted Valhalla still has finite capacity and public
+/// instances rate-limit).
 ///
 /// Rules:
 ///  - [cooldown]: minimum time between two reroute requests.

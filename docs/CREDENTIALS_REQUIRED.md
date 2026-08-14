@@ -6,7 +6,7 @@ assumed "three API keys" requirement.
 
 > Bottom line: **No API keys are required to build or run the app today.**
 > The app runs on open/free services (OpenStreetMap tiles, Nominatim,
-> OSRM-style routing, mock fuel/toll) plus two **projects** you create in
+> Valhalla routing, mock fuel/toll) plus two **projects** you create in
 > Firebase and Supabase. Only **email notifications** need a real credential,
 > and only if/when you wire a live email provider.
 
@@ -50,9 +50,9 @@ see per-service table below.
 
 ### WORLDWIDE MAP (tiles)
 - **Credential required:** NO.
-- **Free:** Yes. **Provider:** OpenStreetMap public tile server.
+- **Free:** Yes. **Provider:** OpenStreetMap public tile server (configurable via `MAP_TILE_URL_TEMPLATE`).
 - **Limit:** Public tile server is for light/dev use — **no heavy or production traffic**. Requires attribution "© OpenStreetMap contributors". Add a tile abstraction so a paid provider can be swapped in for production.
-- **Code status:** Wired in `location_picker_screen.dart` (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`). No abstraction yet.
+- **Code status:** `MapTileConfig` abstraction in `core/config/map_tile_config.dart`; all three map screens build their `TileLayer` from it. See `docs/MAP_ARCHITECTURE.md` / `docs/TILE_PROVIDER_SETUP.md`.
 
 ### WORLDWIDE SEARCH + REVERSE GEOCODING
 - **Credential required:** NO.
@@ -63,9 +63,9 @@ see per-service table below.
 
 ### ROUTING
 - **Credential required:** NO.
-- **Free:** Yes. **Provider:** any OSRM-compatible host (e.g., OSRM public demo ~50k req/day, or self-hosted OSRM).
-- **Limit:** Varies by host; OSRM public demo is non-commercial. Do not hammer.
-- **Code status:** `HttpRoutingProvider` in `routingProvider.ts`, active when `ROUTING_PROVIDER_BASE_URL` is set. Default is a deterministic mock.
+- **Free:** Yes. **Provider:** Valhalla (self-hosted via `infra/valhalla/`, or the dev-only public demo `valhalla1.openstreetmap.de`).
+- **Limit:** Varies by host; the public demo is non-commercial and rate-limited. Do not hammer.
+- **Code status:** `ValhallaRoutingProvider` in `routingProvider.ts`, active when `VALHALLA_BASE_URL` (or legacy `ROUTING_PROVIDER_BASE_URL`) is set. Default is a deterministic mock. See `docs/VALHALLA_SETUP.md`.
 
 ### TRAFFIC
 - **Credential required:** NO (and none should be added blindly).

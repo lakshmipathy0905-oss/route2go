@@ -1,0 +1,60 @@
+# Self-hosted Valhalla for Route2Go (production routing).
+#
+# Usage:
+#   export OSM_EXTRACT_URL=https://download.geofabrik.de/asia/india-latest.osm.pbf
+#   docker compose up -d --build
+#
+# First start downloads the extract and builds tiles (takes minutes to hours
+# depending on region size). Routing is then available at
+#   http://localhost:8002/route
+#
+# Health: the service exposes GET /status (Valhalla's built-in health
+# endpoint); the compose healthcheck polls it so orchestrators restart a
+# sick container. Point the edge functions at it:
+#   supabase secrets set VALHALLA_BASE_URL=http://<host>:8002
+#
+# Sizing: match the resource limits below to your extract (see
+# infra/valhalla/README.md for India / regional / worldwide guidance).
+# Do NOT raise them beyond what the host can actually provide.
+
+services:
+  valhalla:
+    build: .
+    container_name: route2go-valhalla
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      OSM_EXTRACT_URL: ${OSM_EXTRACT_URL:?set OSM_EXTRACT_URL to a Geofabrik .osm.pbf}
+      VALHALLA_CONCURRENCY: ${VALHALLA_CONCURRENCY:-1}
+    volumes:
+      - valhalla-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://localhost:8002/status
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # Conservative defaults; the routing service keeps ~1 GB+ resident for a
+    # typical country extract and the tile build is CPU-heavy. Override per
+    # host with deploy.resources if running under Swarm/Compose >= 2.
+    deploy:
+      resources:
+        limits:
+          memory: ${VALHALLA_MEM_LIMIT:-4g}
+          cpus: ${VALHALLA_CPU_LIMIT:-4}
+        reservations:
+          memory: ${VALHALLA_MEM_RESERVE:-1g}
+          cpus: ${VALHALLA_CPU_RESERVE:-1}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  valhalla-data:

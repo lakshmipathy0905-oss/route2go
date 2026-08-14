@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../../data/repositories/geocoding_repository.dart';
@@ -365,6 +366,7 @@ class _NavMap extends ConsumerWidget {
     final coords = route?.geometryCoordinates;
     final initialPosition =
         ref.read(navigationProvider.select((s) => s.position));
+    final tileConfig = ref.watch(mapTileConfigProvider);
 
     return FlutterMap(
       mapController: mapController,
@@ -385,8 +387,9 @@ class _NavMap extends ConsumerWidget {
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.route2go.route2go',
+          urlTemplate: tileConfig.urlTemplate,
+          tileProvider: tileConfig.buildTileProvider(),
+          userAgentPackageName: tileConfig.userAgentPackageName,
         ),
         if (coords != null && coords.length >= 2)
           PolylineLayer(

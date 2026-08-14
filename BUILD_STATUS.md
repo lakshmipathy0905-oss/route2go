@@ -11,8 +11,8 @@ project's own rule: "do not fake unavailable functionality."
 | Google Sign-In (real OAuth): `google_sign_in` wired in `AuthRepository.signInWithGoogle()`; SHA-1 debug fingerprint registered in the Firebase console; verified live (account picker + 2-Step completed by user) | Done |
 | Supabase linked to correct project `ginurkwywgqpcvzpfaop`; all 6 migrations pushed; all 18 Edge Functions deployed | Done |
 | `route-nav` verify_jwt fixed to `false` (Supabase gateway was rejecting Firebase tokens) | Done |
-| Secrets set: `FIREBASE_PROJECT_ID`, `ROUTING_PROVIDER_BASE_URL` (OSRM), `GEOCODING_PROVIDER_KEY=nominatim`, `USE_LIVE_FUEL_PRICES=true`, `USE_LIVE_TOLL_DATA=true` | Done |
-| Live providers verified: OSRM routing (18.1 km SF→Oakland route), Nominatim geocoding (forward + reverse), fuel/toll flags on | Done |
+| Secrets set: `FIREBASE_PROJECT_ID`, `ROUTING_PROVIDER_BASE_URL`, `GEOCODING_PROVIDER_KEY=nominatim`, `USE_LIVE_FUEL_PRICES=true`, `USE_LIVE_TOLL_DATA=true` | Done |
+| Live providers verified: Valhalla routing (Bengaluru→Mysuru + London→Manchester + waypoints + round trip, 5 labeled options), Nominatim geocoding (forward + reverse), fuel/toll flags on | Done |
 | Map tiles verified rendering on emulator (OSM; real cause of blank map was emulator DNS — fixed with `-dns-server 8.8.8.8`) | Done |
 | `flutter analyze` clean; `flutter test` green (**63 tests**: original 18 + auth/back-nav/router suites + 2 new critical-path E2E tests) | Done |
 | Critical-path E2E integration test (`apps/mobile/test/critical_path_integration_test.dart`): calculate → compare (selectRoute) → places → stays → itinerary → save via real repositories + fake ApiClient, 2 tests | Done |
@@ -28,15 +28,23 @@ project's own rule: "do not fake unavailable functionality."
 | Supabase schema (29 tables), RLS, pgTAP RLS suite (`rls_trips.sql` + `rls_audit.sql`), 17+1 Edge Functions, Firebase token verification, itinerary scheduler | Done (from prior phase) |
 | Flutter app surface: onboarding, home, plan trip, route results, budget tracker, places/stays/itinerary/confirm/live trip, vehicle garage, expenses (group-split shell), notifications+FCM, profile/settings/privacy/terms/help/delete-account, favorites/search, admin dashboard (server-gated RBAC) | Done |
 | Phase-2 gates: `Phase2Gate` widget gated on `/feature-flags`; group-split, offline cache, weather are gated shells | Done (shells) |
+| **OSRM → Valhalla migration**: `_shared/providers/valhalla.ts` (pure request build + response parse + polyline6/GeoJSON shape decoding + maneuver/segment mapping + metric-based labelling + dedupe/cap-5); `ValhallaRoutingProvider` behind `getRoutingProvider()` (activated by `VALHALLA_BASE_URL`, legacy `ROUTING_PROVIDER_BASE_URL` alias); no-route error codes → empty → caller 404, other errors → 502; round trip = honest out-and-back; instructions verbatim from Valhalla; 2 requests (tolls + no-tolls), toll-free failure non-fatal | Done |
+| Valhalla live-verified: Bengaluru→Mysuru (recommended 146.2 km/224 min + no_toll/fastest/shortest), London→Manchester (5 labelled options), waypoints, round trip (288.3 km out-and-back) on the dev demo (`valhalla1.openstreetmap.de`) | Done |
+| Valhalla Deno tests: `valhalla_test.ts` (22) + `routingProvider_test.ts` (6) — request build, polyline6 round-trip, both shape forms, maneuvers verbatim, segments, labelling/dedupe/cap, no-route codes, provider selection, bearer auth, worldwide coordinates | Done |
+| Self-hosted Valhalla: `infra/valhalla/` Dockerfile + compose + entrypoint (download extract → build admin/tiles/extract once → serve :8002) | Done |
+| Map tiles: `MapTileConfig` abstraction (`core/config/map_tile_config.dart`) with `MAP_TILE_URL_TEMPLATE`/`MAP_TILE_ATTRIBUTION` dart-defines + `TransparentTileProvider`; all 3 map screens read it; widget tests offline (no 400 noise from flutter_test's mock HttpClient); attribution + UA now single-source | Done |
+| Geocoding: client-side `GeocodingProvider` abstraction (`data/datasources/geocoding_providers.dart`; Supabase default, mock offline, `GEOCODING_PROVIDER` dart-define); no autocomplete-on-keystroke to public Nominatim (350 ms debounce + proxy via `/geocode` edge function) | Done |
+| Docs: `VALHALLA_SETUP.md`, `MAP_ARCHITECTURE.md`, `GEOCODING_SETUP.md`, `TILE_PROVIDER_SETUP.md`, `infra/valhalla/README.md`; README/BUILD_STATUS/API_SETUP_GUIDE/CREDENTIALS_REQUIRED/PRIVACY_POLICY updated OSRM→Valhalla | Done |
 
 ## Tests run in this session
 
 - `flutter analyze` → No issues found.
 - `flutter test` → **63/63** pass.
 - `deno check` on all 18 functions + shared modules → clean.
-- `deno test` → itinerary scheduler **10/10**, fuel-cost engine **6/6**.
+- `deno test` → itinerary scheduler **10/10**, fuel-cost engine **6/6**, Valhalla **22/22**, routingProvider **6/6** (44 total).
 - Database CI (local): `supabase start` + `db reset` (6 migrations) + `supabase test db` → **10/10** (rls_trips 6 + rls_audit 4).
-- Live provider smoke: route-nav real route (18.1 km / 20 min); geocode Nominatim returned "Bengaluru, ..."; trip-calculate auth + validation verified.
+- Live provider smoke: Valhalla routing (Bengaluru→Mysuru + London→Manchester + waypoints + round trip, 5 labeled options); Nominatim geocoding (forward + reverse); fuel/toll flags on.
+- `flutter build apk --debug` + `flutter build web` → both succeed.
 - Live EV gating: `phase2_ev` off → `fuel_cost: null` / `unavailable`; on → `fuel_cost: 182.53` / `calculated`; restored to off.
 
 ## Known gaps to close before this is production-safe
@@ -91,6 +99,42 @@ project's own rule: "do not fake unavailable functionality."
 - Apple Developer account + signing certificate + **Team ID** (for iOS release)
 - Google Play Console account + **release keystore** (for Android release)
 - Hotel/affiliate partner account(s) for the Stays flow (optional for launch)
+
+## Production hardening pass (2026-08-14)
+
+Applied on top of the OSRM→Valhalla migration. No behavioral change to Phase 1/2
+navigation. Baseline + results all green (analyze clean, Flutter 63/63, Deno
+50/50, APK + Web builds PASS).
+
+- **Routing failure handling**: `ValhallaRoutingProvider` now uses a 10 s
+  `AbortSignal.timeout` per attempt and bounded retry — the tolls-allowed
+  request retries at most once after 500 ms; the toll-free request never
+  retries. Retries only on network errors/timeouts/5xx, **never 4xx**
+  (Valhalla no-route codes map straight to `404 NO_ROUTE_FOUND`; other failures
+  surface as retryable `502`). Covered by `routingProvider_test.ts` (5xx → one
+  bounded retry, 4xx → no retry).
+- **Geometry coverage**: `valhalla_test.ts` now 26 tests, including
+  antimeridian polyline decode (unchanged across ±180), BLR→Mysuru lng/lat
+  integrity, London→Manchester negative-longitude, and A→stop1→stop2→B waypoint
+  ordering + seam dedupe.
+- **Self-host hardening**: `infra/valhalla/docker-compose.yml` gained a
+  `GET /status` healthcheck, memory/CPU limits + reservations (overridable via
+  `VALHALLA_MEM_LIMIT`/`VALHALLA_CPU_LIMIT`), capped logging. README rewritten
+  with region options A (India-only), B (regional), C (worldwide) and realistic
+  infra sizing. See `infra/valhalla/README.md`.
+- **Honesty/error UX**: production never falls back to the mock provider; a
+  Valhalla outage yields a clear `502`, and turn-by-turn falls back to the
+  honest "Following the highlighted route" text — no fabricated instructions.
+- **Test fix**: `router_back_navigation_test.dart` now taps the field's InkWell
+  (the real hit target) instead of the floating label text, removing the
+  "would not hit test" warning without `warnIfMissed: false`.
+- **Live integration check** (manual, against `valhalla1.openstreetmap.de`):
+  BLR→Mysuru returned HTTP 200 in ~1 s; parsed 148.4 km / 230 min, 31 valid
+  steps, 1958 valid geometry points.
+- **Security scan**: no `.env`/private keys/service-role JWTs in tracked files;
+  Firebase client config is public-by-design (not secrets).
+- **Not verified / release blockers**: iOS `DEVELOPMENT_TEAM` still unset
+  (Apple signing required); no physical-device Live Trip test yet.
 
 ## Realistic next steps for "go live"
 

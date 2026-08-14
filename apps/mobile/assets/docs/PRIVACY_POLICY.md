@@ -65,9 +65,10 @@ legal or similarly significant effects about you.
 - **Supabase** — database and serverless functions that store and process your
   trip data.
 - **Map data providers** — your origin and destination coordinates are sent to
-  a routing/geocoding provider (currently OpenStreetMap's Nominatim and OSRM)
-  solely to compute a route and to geocode addresses. These are public map
-  services; only the query coordinates are transmitted, never your identity.
+  a routing/geocoding provider (currently OpenStreetMap's Nominatim and
+  Valhalla) solely to compute a route and to geocode addresses. These are
+  public map services; only the query coordinates are transmitted, never your
+  identity.
 - **Booking partners** — only when you choose to leave the App and book a
   stay; we log the booking click to track affiliate commission. Your booking
   is governed by the partner's own terms and privacy policy.
