@@ -49,7 +49,7 @@ expenses, notifications and profile.
 
 ## 7. Your rights
 Access, correct, export, or delete your data. Email route2go1@gmail.com
-(placeholder) and we will respond within 30 days.
+and we will respond within 30 days.
 
 ## 8. Security
 All traffic is over HTTPS. Identity is verified with Firebase ID tokens, and
@@ -63,4 +63,4 @@ collect their data.
 Material changes will be announced in-app, and this page updated.
 
 ## 11. Contact
-route2go1@gmail.com — placeholder, replace before launch.
+route2go1@gmail.com
