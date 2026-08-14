@@ -1,0 +1,143 @@
+// Shared authentication + DB wiring for Route2Go edge functions.
+//
+// Every privileged endpoint must:
+//   1. verify the Firebase ID token from `Authorization: Bearer <token>`
+//   2. resolve firebase_uid -> internal public.users.id
+//   3. use the SERVICE_ROLE client (server-only) filtered by that id
+//
+// A literal "guest" token is accepted ONLY where the endpoint opts in
+// (`allowGuest`). Guests are never persisted and get no user id back.
+
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyFirebaseToken } from "./firebaseAuth.ts";
+
+export interface AuthedContext {
+  supabase: SupabaseClient;
+  /** Internal public.users.id; null for guests. */
+  userId: string | null;
+  /** Verified Firebase uid; null for guests. */
+  firebaseUid: string | null;
+  isGuest: boolean;
+  /** Human-readable role for admin endpoints; null for non-admins. */
+  adminRole: string | null;
+}
+
+function supabaseClient(): SupabaseClient {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
+  }
+  return createClient(url, key);
+}
+
+export async function authRequest(req: Request, opts: { allowGuest?: boolean } = {}): Promise<AuthedContext> {
+  const header = req.headers.get("Authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) {
+    throw new AuthError(401, "UNAUTHENTICATED", "Missing bearer token.");
+  }
+
+  let firebaseUid: string | null = null;
+  let isGuest = false;
+
+  if (token === "guest") {
+    if (!opts.allowGuest) {
+      throw new AuthError(401, "GUEST_NOT_ALLOWED", "This action requires an account.");
+    }
+    isGuest = true;
+  } else {
+    try {
+      const decoded = await verifyFirebaseToken(token);
+      firebaseUid = decoded.uid;
+    } catch {
+      throw new AuthError(401, "INVALID_TOKEN", "Firebase token could not be verified.");
+    }
+  }
+
+  const supabase = supabaseClient();
+
+  let userId: string | null = null;
+  let adminRole: string | null = null;
+
+  if (!isGuest && firebaseUid) {
+    const { data: userRow, error } = await supabase
+      .from("users")
+      .select("id")
+      .eq("firebase_uid", firebaseUid)
+      .maybeSingle();
+    if (error) {
+      throw new AuthError(500, "DB_ERROR", "Could not resolve user.");
+    }
+    userId = userRow?.id ?? null;
+
+    if (userId) {
+      const { data: adminRow, error: adminErr } = await supabase
+        .from("admin_users")
+        .select("role")
+        .eq("firebase_uid", firebaseUid)
+        .maybeSingle();
+      if (!adminErr && adminRow?.role) {
+        adminRole = adminRow.role;
+      }
+    }
+  }
+
+  return { supabase, userId, firebaseUid, isGuest, adminRole };
+}
+
+/** Requires an authenticated (non-guest) user, or throws a typed AuthError. */
+export async function requireUser(ctx: AuthedContext): Promise<string> {
+  if (ctx.isGuest || !ctx.userId) {
+    throw new AuthError(401, "AUTH_REQUIRED", "This action requires an account.");
+  }
+  return ctx.userId;
+}
+
+/** Requires an admin role (any role) and returns it. */
+export async function requireAdmin(ctx: AuthedContext): Promise<string> {
+  if (!ctx.adminRole) {
+    throw new AuthError(403, "FORBIDDEN", "Admin access required.");
+  }
+  return ctx.adminRole;
+}
+
+/**
+ * Writes an audit log row. Fails softly: an audit failure must never break
+ * the primary operation (we just log to console and continue).
+ */
+export async function auditLog(ctx: AuthedContext, entry: {
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  beforeSummary?: Record<string, unknown> | null;
+  afterSummary?: Record<string, unknown> | null;
+}): Promise<void> {
+  try {
+    await ctx.supabase.from("audit_logs").insert({
+      actor_firebase_uid: ctx.firebaseUid,
+      action: entry.action,
+      entity_type: entry.entityType,
+      entity_id: entry.entityId ?? null,
+      before_summary: entry.beforeSummary ?? null,
+      after_summary: entry.afterSummary ?? null,
+    });
+  } catch (err) {
+    console.error("audit_log write failed", err);
+  }
+}
+
+export class AuthError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+    public retryable = false
+  ) {
+    super(message);
+  }
+}
+
+export function isOwnedByUser(ctx: AuthedContext, rowUser: string | null | undefined): boolean {
+  return ctx.userId !== null && rowUser === ctx.userId;
+}

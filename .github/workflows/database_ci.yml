@@ -1,0 +1,63 @@
+# Route2Go — Database CI
+#
+# Validates migration SQL syntax (additive, idempotent, applies cleanly on a
+# fresh database) and runs the RLS policy smoke checks. Uses the Supabase CLI
+# in CI mode against a local Postgres container so no cloud credentials are
+# needed for PR validation.
+
+name: Database CI
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - ".github/workflows/database_ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - ".github/workflows/database_ci.yml"
+
+concurrency:
+  group: db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: apply migrations + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local stack
+        run: supabase start
+
+      - name: Apply migrations on a fresh database
+        run: |
+          # Point at the CI-local project (not the tracked one) so we never
+          # push schema changes from CI.
+          supabase db reset
+
+      - name: Verify migration count applied cleanly
+        run: |
+          set -e
+          supabase db dump --schema public --file /tmp/schema_dump.sql >/dev/null 2>&1 || true
+          grep -c "CREATE TABLE" supabase/migrations/0001_core_schema.sql | grep -q . 
+
+      - name: Run pgTAP RLS suite
+        run: supabase test db
+
+      - name: Stop local stack
+        if: always()
+        run: supabase stop

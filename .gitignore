@@ -1,0 +1,32 @@
+# Secrets — never commit real env files, only *.example
+.env
+.env.development
+.env.staging
+.env.production
+**/firebase_options.dart.bak
+**/google-services.json
+**/GoogleService-Info.plist
+**/*.jks
+**/*.keystore
+**/key.properties
+
+# Flutter / Dart
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase local dev
+supabase/.branches
+supabase/.temp

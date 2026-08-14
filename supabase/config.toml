@@ -1,0 +1,100 @@
+# Route2Go — Supabase project configuration
+#
+# NOTE ON verify_jwt:
+# Every Route2Go edge function performs its OWN identity verification against
+# Firebase ID tokens (see supabase/functions/_shared/auth.ts), and several
+# accept the literal "guest" token for the guest flow (spec 5.2). Platform-level
+# JWT verification must therefore be disabled for all functions, otherwise the
+# platform would reject guest tokens before our code runs. Defense-in-depth is
+# still enforced inside each function via authRequest()/requireUser()/requireAdmin().
+
+project_id = "route2go"
+
+# Restricting the functions directory scope (functions/ only)
+[vault]
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[analytics]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://route2go.example"]
+jwt_expiry = 3600
+enable_signup = true
+
+# All functions self-authenticate against Firebase; none rely on Supabase's
+# JWT gateway, so verify_jwt is false across the board.
+[functions.trip-calculate]
+verify_jwt = false
+
+[functions.vehicles]
+verify_jwt = false
+
+[functions.trip]
+verify_jwt = false
+
+[functions.expenses]
+verify_jwt = false
+
+[functions.notifications]
+verify_jwt = false
+
+[functions.profile]
+verify_jwt = false
+
+[functions.privacy]
+verify_jwt = false
+
+[functions.favorites]
+verify_jwt = false
+
+[functions.affiliate]
+verify_jwt = false
+
+[functions.support]
+verify_jwt = false
+
+[functions.search]
+verify_jwt = false
+
+[functions.feature-flags]
+verify_jwt = false
+
+[functions.places-near-route]
+verify_jwt = false
+
+[functions.stays-near-route]
+verify_jwt = false
+
+[functions.itinerary-generate]
+verify_jwt = false
+
+[functions.geocode]
+verify_jwt = false
+
+[functions.admin]
+verify_jwt = false

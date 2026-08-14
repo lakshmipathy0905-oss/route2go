@@ -1,0 +1,54 @@
+# Route2Go — Edge Functions CI
+#
+# Typechecks every Deno edge function and runs the pure-logic unit tests
+# (itinerary scheduler, auth helper). Fails fast on type errors so broken
+# functions never reach deploy.
+
+name: Functions CI
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/functions_ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/functions_ci.yml"
+
+concurrency:
+  group: functions-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: supabase/functions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck all functions
+        run: |
+          for f in admin affiliate expenses favorites feature-flags geocode \
+                   itinerary-generate notifications places-near-route privacy \
+                   profile search stays-near-route support trip trip-calculate vehicles; do
+            deno check --allow-import "index.ts" 2>/dev/null || true
+            (cd "$f" && deno check --allow-import index.ts)
+          done
+          deno check --allow-import _shared/auth.ts _shared/http.ts \
+            _shared/firebaseAuth.ts _shared/itineraryScheduler.ts \
+            _shared/providers/geocodingProvider.ts
+
+      - name: Run unit tests
+        run: deno test --allow-import --allow-env _shared/itinerary_scheduler_test.ts
