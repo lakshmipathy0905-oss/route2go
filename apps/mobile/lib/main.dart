@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/notifications/fcm_service.dart';
+import 'core/notifications/tracking_permission_service.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -28,6 +29,12 @@ Future<void> main() async {
   // Crashlytics: catch Flutter framework errors and uncaught async errors.
   // Never logs tokens, auth headers or precise location — see SECURITY.md.
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+  // iOS App Tracking Transparency: prompt once and gate analytics on the
+  // user's answer (no-op on Android). Never blocks launch.
+  unawaited(
+    TrackingPermissionService().requestAndGateAnalytics(),
+  );
 
   // Supabase client here uses only the anon key — safe for the mobile app.
   // The service-role key NEVER ships in this app; privileged writes go

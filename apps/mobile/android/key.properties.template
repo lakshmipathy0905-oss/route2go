@@ -1,0 +1,26 @@
+# Route2Go — Android release signing (TEMPLATE)
+#
+# Copy this file to `android/key.properties` and fill in real values.
+# key.properties is gitignored — never commit keystores or passwords.
+#
+# Generate a keystore once (keep it safe; it is the identity of your app):
+#
+#   keytool -genkey -v -keystore ~/.android/route2go-release.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias route2go -storepass <CHANGE-ME> \
+#     -dname "CN=Route2Go, OU=Android, O=Route2Go, L=Bengaluru, S=KA, C=IN"
+#
+# Then fill in:
+#
+#   storeFile=/Users/lucky/.android/route2go-release.jks
+#   storePassword=CHANGE-ME
+#   keyAlias=route2go
+#   keyPassword=CHANGE-ME
+#
+# Once this file exists, `flutter build appbundle --release` signs with the
+# real keystore. Without it, release builds sign with the debug keystore
+# (fine for local testing, REJECTED by Google Play).
+storeFile=
+storePassword=
+keyAlias=
+keyPassword=
