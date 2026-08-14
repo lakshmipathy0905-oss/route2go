@@ -58,12 +58,31 @@ project's own rule: "do not fake unavailable functionality."
 6. **DB-backed tables empty** — `places`, `hotels`, `fuel_prices`, `stays` have
    no data (licensed feeds/API keys not in repo); DB-backed functions return
    honest empty/unavailable results via ConfidenceBadge until feeds are wired.
+   Trip calculation, trip saving and route saving all work; fuel cost shows
+   "unavailable" (stored as NULL in `routes.fuel_cost`, which is now nullable)
+   until a licensed fuel-price feed is wired.
 7. **Phase 2 bodies** (group split, offline cache, weather) remain gated shells
    behind `phase2_*` flags; EV/CNG cost paths are now implemented.
 8. **Physical-device testing** of the full Live Trip flow (background location)
    still recommended; currently verified on emulator.
 9. **Google 2-Step** — real-device sign-in needs the user's phone approval
    (completed on emulator).
+
+## Fixed 2026-08-14 (post-rotation verification pass)
+
+- **Lazy user provisioning**: first authenticated call now creates the
+  internal `users` row (and default profile) from the verified Firebase
+  identity, instead of 404ing with USER_NOT_FOUND. All 18 functions redeployed
+  (fixed in `_shared/auth.ts` + `trip-calculate/index.ts`).
+- **Routes insert failure**: `routes.fuel_cost`/`toll_cost` are now nullable
+  (migration `0007_routes_nullable_costs.sql`), so a trip with an unavailable
+  fuel price saves cleanly instead of erroring "Could not save route options".
+- **Onboarding skip**: returning users who finished onboarding now go straight
+  to Home; `onboarding_complete` was written but never read. Fixed in
+  `splash_screen.dart` + `onboarding_screen.dart`.
+- End-to-end verified on emulator: Plan a Trip (Mysuru→Bengaluru) → route
+  options + comparison table → trip saved → Trips list → trip detail →
+  share/expense/rename → vehicles add → search → profile → map.
 
 ## Required external credentials (cannot be created for you)
 

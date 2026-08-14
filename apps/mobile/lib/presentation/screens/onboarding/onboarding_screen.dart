@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/local/preferences_store.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 
@@ -26,18 +28,22 @@ const _cards = [
       'Confirm your plan, then navigate with a live budget meter.'),
 ];
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
   int _page = 0;
 
-  void _finish() => context.go(AppRoutes.home);
+  void _finish() {
+    final store = ref.read(preferencesStoreProvider).valueOrNull;
+    if (store != null) store.setOnboardingComplete();
+    context.go(AppRoutes.home);
+  }
 
   @override
   Widget build(BuildContext context) {

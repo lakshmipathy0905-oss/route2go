@@ -17,8 +17,7 @@
 //   ROUTING_PROVIDER_BASE_URL
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyFirebaseToken } from "../_shared/firebaseAuth.ts";
-import { resolveServiceRoleKey } from "../_shared/auth.ts";
+import { authRequest, requireUser, resolveServiceRoleKey, AuthError } from "../_shared/auth.ts";
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { getRoutingProvider } from "../_shared/providers/routingProvider.ts";
 import { getFuelPriceProvider } from "../_shared/providers/fuelPriceProvider.ts";
@@ -66,28 +65,21 @@ Deno.serve(async (req: Request) => {
     return jsonError(405, "METHOD_NOT_ALLOWED", "Only POST is supported.", reqId, false);
   }
 
-  // 1. Verify Firebase token (never trust client-provided uid/email)
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return jsonError(401, "UNAUTHENTICATED", "Missing bearer token.", reqId, false);
-  }
-
-  let firebaseUid: string | null = null;
-  let isGuest = false;
-
-  if (token === "guest") {
-    // Explicit, narrow guest path: route calculation is allowed for guests per spec (Section 5.2),
-    // but nothing is persisted to a user-owned trip.
-    isGuest = true;
-  } else {
-    try {
-      const decoded = await verifyFirebaseToken(token);
-      firebaseUid = decoded.uid;
-    } catch (err) {
-      return jsonError(401, "INVALID_TOKEN", "Firebase token could not be verified.", reqId, false);
+  // 1. Verify Firebase token (never trust client-provided uid/email).
+  //    Guest mode is allowed here (spec Section 5.2): route calculation works
+  //    signed out, but nothing is persisted to a user-owned trip. Authenticated
+  //    callers get lazily provisioned via authRequest (see _shared/auth.ts).
+  let ctx;
+  try {
+    ctx = await authRequest(req, { allowGuest: true });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return jsonError(err.status, err.code, err.message, reqId, err.retryable);
     }
+    return jsonError(500, "INTERNAL", "Unexpected error.", reqId, true);
   }
+  const isGuest = ctx.isGuest;
+  const internalUserId = ctx.userId;
 
   // 2. Parse + validate request body
   let body: CalculateRequest;
@@ -109,22 +101,7 @@ Deno.serve(async (req: Request) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // 3. Resolve internal user id (only for authenticated calls)
-  let internalUserId: string | null = null;
-  if (!isGuest && firebaseUid) {
-    const { data: userRow, error: userErr } = await supabase
-      .from("users")
-      .select("id")
-      .eq("firebase_uid", firebaseUid)
-      .maybeSingle();
-    if (userErr) {
-      return jsonError(500, "DB_ERROR", "Could not resolve user.", reqId, true);
-    }
-    internalUserId = userRow?.id ?? null;
-    if (!internalUserId) {
-      return jsonError(404, "USER_NOT_FOUND", "No Route2Go account found for this identity.", reqId, false);
-    }
-  }
+  // 3. internalUserId was resolved (and provisioned if needed) in authRequest.
 
   // 4. Call routing provider (abstracted; mock adapter used if no key configured)
   const routingProvider = getRoutingProvider();

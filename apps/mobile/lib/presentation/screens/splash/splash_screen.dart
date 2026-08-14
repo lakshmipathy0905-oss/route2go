@@ -1,26 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/local/preferences_store.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _handled = false;
+
   @override
   void initState() {
     super.initState();
     // Target: cold start to first interactive frame < 2.5s (spec Section 25).
-    // In production, check a local "onboarding_complete" flag here and skip
-    // straight to Home for returning users instead of always showing onboarding.
-    Future.delayed(const Duration(milliseconds: 900), () {
-      if (mounted) context.go(AppRoutes.onboarding);
-    });
+    // Returning users who finished onboarding skip straight to Home; only
+    // first-time users see the onboarding cards. The flag is read after the
+    // local preferences store resolves (never at post-frame, where the store
+    // may still be loading).
+    _routeAfterLoad();
+  }
+
+  Future<void> _routeAfterLoad() async {
+    try {
+      final store = await ref.read(preferencesStoreProvider.future);
+      if (!mounted || _handled) return;
+      _handled = true;
+      context.go(
+          store.onboardingComplete ? AppRoutes.home : AppRoutes.onboarding);
+    } catch (_) {
+      if (!mounted || _handled) return;
+      _handled = true;
+      context.go(AppRoutes.onboarding);
+    }
   }
 
   @override

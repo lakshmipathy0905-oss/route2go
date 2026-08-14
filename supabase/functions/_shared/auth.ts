@@ -14,7 +14,7 @@
 // legacy keys are disabled after a service-role key rotation.
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyFirebaseToken } from "./firebaseAuth.ts";
+import { verifyFirebaseToken, DecodedFirebaseToken } from "./firebaseAuth.ts";
 
 export interface AuthedContext {
   supabase: SupabaseClient;
@@ -61,6 +61,7 @@ export async function authRequest(req: Request, opts: { allowGuest?: boolean } =
 
   let firebaseUid: string | null = null;
   let isGuest = false;
+  let decoded: DecodedFirebaseToken | null = null;
 
   if (token === "guest") {
     if (!opts.allowGuest) {
@@ -69,7 +70,7 @@ export async function authRequest(req: Request, opts: { allowGuest?: boolean } =
     isGuest = true;
   } else {
     try {
-      const decoded = await verifyFirebaseToken(token);
+      decoded = await verifyFirebaseToken(token);
       firebaseUid = decoded.uid;
     } catch {
       throw new AuthError(401, "INVALID_TOKEN", "Firebase token could not be verified.");
@@ -91,6 +92,38 @@ export async function authRequest(req: Request, opts: { allowGuest?: boolean } =
       throw new AuthError(500, "DB_ERROR", "Could not resolve user.");
     }
     userId = userRow?.id ?? null;
+
+    // Lazy provisioning: a verified Firebase identity is the source of truth
+    // for who the user is, so the first authenticated call creates the
+    // internal users row (and the default profile). Without this, a brand-new
+    // Firebase sign-in would 404 on every endpoint. Upsert keeps this
+    // idempotent under concurrent first calls.
+    if (!userId) {
+      const { data: provisioned, error: provErr } = await supabase
+        .from("users")
+        .upsert({
+          firebase_uid: firebaseUid,
+          email: decoded?.email ?? null,
+          phone: decoded?.phone_number ?? null,
+          auth_provider: inferAuthProvider(decoded),
+        }, { onConflict: "firebase_uid", ignoreDuplicates: false })
+        .select("id")
+        .single();
+      if (provErr) {
+        throw new AuthError(500, "DB_ERROR", "Could not provision user.");
+      }
+      userId = provisioned?.id ?? null;
+
+      if (userId) {
+        const { error: profileErr } = await supabase.from("profiles").upsert(
+          { user_id: userId, language: "en", travel_pref: "balanced", analytics_opt_out: false },
+          { onConflict: "user_id", ignoreDuplicates: true }
+        );
+        if (profileErr) {
+          console.error("profile provision failed", profileErr);
+        }
+      }
+    }
 
     if (userId) {
       const { data: adminRow, error: adminErr } = await supabase
@@ -161,4 +194,18 @@ export class AuthError extends Error {
 
 export function isOwnedByUser(ctx: AuthedContext, rowUser: string | null | undefined): boolean {
   return ctx.userId !== null && rowUser === ctx.userId;
+}
+
+/** Best-effort provider label from token claims (google | email | phone). */
+function inferAuthProvider(decoded: DecodedFirebaseToken | null): string {
+  if (!decoded) return "unknown";
+  const firebase = decoded.firebase as { sign_in_provider?: string } | undefined;
+  if (firebase?.sign_in_provider) {
+    const p = firebase.sign_in_provider;
+    if (p === "password") return "email";
+    return p;
+  }
+  if (decoded.email) return "email";
+  if (decoded.phone_number) return "phone";
+  return "unknown";
 }
