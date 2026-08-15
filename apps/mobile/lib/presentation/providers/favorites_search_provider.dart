@@ -27,11 +27,12 @@ final favoritesProvider =
 );
 
 /// Debounced search state for the global search screen (spec 2.11).
-class SearchNotifier extends AsyncNotifier<List<SearchResult>> {
+class SearchNotifier extends AsyncNotifier<SearchResponse> {
   String _query = '';
 
   @override
-  Future<List<SearchResult>> build() async => const [];
+  Future<SearchResponse> build() async =>
+      const SearchResponse(results: [], nearbyDegraded: false);
 
   String get query => _query;
 
@@ -40,7 +41,8 @@ class SearchNotifier extends AsyncNotifier<List<SearchResult>> {
     if ((trimmed.length < 2 && _query.length < 2) && state.hasValue) return;
     _query = trimmed;
     if (trimmed.length < 2) {
-      state = const AsyncData([]);
+      state =
+          const AsyncData(SearchResponse(results: [], nearbyDegraded: false));
       return;
     }
     state = const AsyncLoading();
@@ -62,8 +64,7 @@ class SearchNotifier extends AsyncNotifier<List<SearchResult>> {
   }
 }
 
-final searchProvider =
-    AsyncNotifierProvider<SearchNotifier, List<SearchResult>>(
+final searchProvider = AsyncNotifierProvider<SearchNotifier, SearchResponse>(
   SearchNotifier.new,
 );
 

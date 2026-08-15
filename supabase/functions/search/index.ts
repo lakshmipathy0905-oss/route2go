@@ -118,6 +118,7 @@ Deno.serve(async (req: Request) => {
   // Worldwwide address/place results from the upgraded provider (Photon by
   // default) and, when a reference point is supplied, POI category results
   // from Overpass. Best-effort: a provider failure never drops the DB hits.
+  let nearbyDegraded = false;
   try {
     const latRaw = url.searchParams.get("lat");
     const lngRaw = url.searchParams.get("lng");
@@ -138,12 +139,14 @@ Deno.serve(async (req: Request) => {
       const lat = Number(latRaw);
       const lng = Number(lngRaw);
       if (isFinite(lat) && isFinite(lng)) {
-        const pois = await getPoiProvider().searchNear({
+        const provider = getPoiProvider();
+        const pois = await provider.searchNear({
           query: q,
           lat,
           lng,
           radiusKm: 10,
         });
+        nearbyDegraded = provider.isDegraded();
         for (const p of pois.slice(0, limit)) {
           results.push({
             kind: "nearby",
@@ -158,7 +161,8 @@ Deno.serve(async (req: Request) => {
     }
   } catch {
     // Nearby search is best-effort.
+    nearbyDegraded = true;
   }
 
-  return jsonOk(results.slice(0, limit * 3), reqId);
+  return jsonOk(results.slice(0, limit * 3), reqId, { nearbyDegraded });
 });

@@ -161,3 +161,27 @@ Deno.test("mock provider returns [] for non-category queries", async () => {
   assertEquals(results, []);
   restoreEnv();
 });
+
+Deno.test("mock provider never reports degraded", () => {
+  Deno.env.set("POI_PROVIDER", "mock");
+  const provider = getPoiProvider();
+  assert(!provider.isDegraded(), "mock answers are always live data");
+  restoreEnv();
+});
+
+Deno.test("real provider short-circuits non-category queries as not degraded", async () => {
+  Deno.env.set("POI_PROVIDER", "overpass");
+  const provider = getPoiProvider();
+  const results = await provider.searchNear({
+    query: "some road",
+    lat: 12.97,
+    lng: 77.59,
+    radiusKm: 5,
+  });
+  assertEquals(results, []);
+  assert(
+    !provider.isDegraded(),
+    "short-circuited non-category is not degraded",
+  );
+  restoreEnv();
+});

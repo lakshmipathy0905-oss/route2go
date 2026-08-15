@@ -22,6 +22,11 @@ export interface PoiSearchParams {
 
 export interface PoiProvider {
   searchNear(params: PoiSearchParams): Promise<PoiResult[]>;
+  // True when the last search was answered from the degraded path (cooldown
+  // active or the upstream failed) rather than from live/cached data. Lets
+  // callers distinguish "no POIs exist" from "POIs exist but we couldn't
+  // reach the provider".
+  isDegraded(): boolean;
 }
 
 export interface OsmTag {
@@ -181,12 +186,15 @@ function fetchWithTimeout(
 class OverpassPoiProvider implements PoiProvider {
   // Public Overpass endpoints. The main instance rate-limits aggressively and
   // egress from some regions is flaky, so mirrors are tried in order with a
-  // bounded timeout. Route2Go only queries these for explicit POI category
-  // searches (never per keystroke without a category match).
+  // bounded timeout. Order favours the endpoints observed to respond fastest
+  // and most reliably from the deploy region; dead instances are removed
+  // rather than left to burn timeout budget. Route2Go only queries these for
+  // explicit POI category searches (never per keystroke without a category
+  // match).
   private static MIRRORS = [
-    "https://overpass-api.de/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.openstreetmap.fr/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
   ];
 
@@ -201,9 +209,18 @@ class OverpassPoiProvider implements PoiProvider {
   private static readonly MAX_CACHE = 64;
 
   // Circuit breaker: after a total failure, back off for a while instead of
-  // re-hammering the public servers on every keystroke.
+  // re-hammering the public servers on every keystroke. Kept short so a brief
+  // mirror outage doesn't silence category searches for long.
   private static cooldownUntil = 0;
-  private static readonly COOLDOWN_MS = 90 * 1000;
+  private static readonly COOLDOWN_MS = 45 * 1000;
+
+  // Whether the most recent searchNear was served while degraded (cooldown
+  // active with no cached answer). Reset on any live/cached success.
+  private static wasDegraded = false;
+
+  isDegraded(): boolean {
+    return OverpassPoiProvider.wasDegraded;
+  }
 
   async searchNear(params: PoiSearchParams): Promise<PoiResult[]> {
     const tags = matchCategory(params.query);
@@ -212,9 +229,11 @@ class OverpassPoiProvider implements PoiProvider {
       `${params.lng.toFixed(3)}|${params.radiusKm}`;
     const cached = OverpassPoiProvider.cache.get(key);
     if (cached && Date.now() - cached.at < OverpassPoiProvider.TTL_MS) {
+      OverpassPoiProvider.wasDegraded = false;
       return cached.results;
     }
     if (Date.now() < OverpassPoiProvider.cooldownUntil) {
+      OverpassPoiProvider.wasDegraded = true;
       return [];
     }
 
@@ -238,7 +257,7 @@ class OverpassPoiProvider implements PoiProvider {
             },
             body: body.toString(),
           },
-          15_000,
+          10_000,
         );
         if (!res.ok) {
           lastError = new Error(`POI provider error ${res.status}`);
@@ -255,6 +274,7 @@ class OverpassPoiProvider implements PoiProvider {
         }
         OverpassPoiProvider.cache.set(key, { at: Date.now(), results: parsed });
         OverpassPoiProvider.cooldownUntil = 0;
+        OverpassPoiProvider.wasDegraded = false;
         return parsed;
       } catch (err) {
         lastError = err;
@@ -263,6 +283,7 @@ class OverpassPoiProvider implements PoiProvider {
     // All mirrors failed — back off rather than hammering them.
     OverpassPoiProvider.cooldownUntil = Date.now() +
       OverpassPoiProvider.COOLDOWN_MS;
+    OverpassPoiProvider.wasDegraded = true;
     if (lastError !== null) {
       if (lastError instanceof Error) throw lastError;
       throw new Error("POI provider error");
@@ -272,6 +293,10 @@ class OverpassPoiProvider implements PoiProvider {
 }
 
 class MockPoiProvider implements PoiProvider {
+  isDegraded(): boolean {
+    return false;
+  }
+
   async searchNear(params: PoiSearchParams): Promise<PoiResult[]> {
     const tags = matchCategory(params.query);
     if (tags.length === 0) return [];

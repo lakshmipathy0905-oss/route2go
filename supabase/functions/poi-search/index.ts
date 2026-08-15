@@ -63,6 +63,18 @@ Deno.serve(async (req: Request) => {
       lng,
       radiusKm: Number.isFinite(radiusKm) ? radiusKm : 10,
     });
+    // A degraded answer (cooldown active, no cache) means the public Overpass
+    // servers were unreachable for this request — say so instead of implying
+    // there are no matching places.
+    if (provider.isDegraded()) {
+      return jsonError(
+        502,
+        "POI_SEARCH_UNAVAILABLE",
+        "Place search is temporarily unavailable.",
+        reqId,
+        true,
+      );
+    }
     return jsonOk(results, reqId);
   } catch {
     return jsonError(

@@ -223,3 +223,19 @@ upgrades and verifies every screen flow. All checks green.
 | **On-device verification**: fresh APK (correct dart-defines) installed on emulator-5554; verified Home, Map tab (saved routes + locate + permission explainer), global search (worldwide results), LocationPicker (worldwide + POI merge), honest error states | Done |
 | Docs: `docs/API_PROVIDER_MATRIX.md`, `docs/DATA_SOURCES.md` new; `GEOCODING_SETUP.md` + `TILE_PROVIDER_SETUP.md` updated | Done |
 | Verification: `flutter analyze` clean, `flutter test` 63/63, `flutter build apk` ✓, `flutter build web` ✓, `deno check` clean, `deno test` 69/69 | Done |
+
+### Reliability & honesty fix (same session, committed separately)
+
+- **POI mirror hardening**: dropped dead `overpass.kumi.systems`; ordered mirrors
+  by measured responsiveness (`maps.mail.ru` → `overpass-api.de` →
+  `overpass.openstreetmap.fr` → `overpass.private.coffee`); per-mirror timeout
+  tightened 15s→10s; cooldown shortened 90s→45s. Measured `/search` POI success
+  went from **~1/4 to 5/5**.
+- **Honest degradation signal**: `PoiProvider.isDegraded()` distinguishes
+  "provider unreachable" from "no POIs exist"; `/search` returns
+  `nearbyDegraded`, `/poi-search` returns 502 `POI_SEARCH_UNAVAILABLE` on the
+  degraded path. The Search screen now shows "Nearby places are unavailable
+  right now…" instead of the misleading "No matches found."
+- `jsonOk` gained a backwards-compatible optional extra-field arg.
+- On-device re-verified: global search "cafes near me" → 10 real Mysuru cafes.
+- Deno tests 71/71 (2 new); flutter analyze/test green; apk rebuilt + reinstalled.

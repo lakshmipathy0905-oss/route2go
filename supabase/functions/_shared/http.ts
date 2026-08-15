@@ -4,20 +4,32 @@
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*", // tighten to your admin/app origins in production
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 export function requestId(): string {
   return crypto.randomUUID();
 }
 
-export function jsonOk(data: unknown, reqId: string, status = 200): Response {
+export function jsonOk(
+  data: unknown,
+  reqId: string,
+  statusOrExtra?: number | Record<string, unknown>,
+  status?: number,
+): Response {
+  let extra: Record<string, unknown> | undefined;
+  if (typeof statusOrExtra === "number") {
+    status = statusOrExtra;
+  } else {
+    extra = statusOrExtra;
+  }
   return new Response(
-    JSON.stringify({ data, requestId: reqId }),
+    JSON.stringify({ data, requestId: reqId, ...extra }),
     {
-      status,
+      status: status ?? 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
-    }
+    },
   );
 }
 
@@ -26,7 +38,7 @@ export function jsonError(
   code: string,
   message: string,
   reqId: string,
-  retryable: boolean
+  retryable: boolean,
 ): Response {
   return new Response(
     JSON.stringify({
@@ -38,6 +50,6 @@ export function jsonError(
     {
       status,
       headers: { "Content-Type": "application/json", ...corsHeaders },
-    }
+    },
   );
 }

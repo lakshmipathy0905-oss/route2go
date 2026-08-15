@@ -65,7 +65,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: ref.watch(searchProvider).when(
                     loading: () => const AppLoadingState(message: 'Searching…'),
                     error: (err, st) => AppErrorState(error: err),
-                    data: (results) {
+                    data: (response) {
                       if (_ctrl.text.trim().length < 2) {
                         return const AppEmptyState(
                           message:
@@ -73,7 +73,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           icon: Icons.search,
                         );
                       }
-                      if (results.isEmpty) {
+                      if (response.results.isEmpty) {
+                        // Never read "provider unavailable" as "no matches":
+                        // a degraded nearby search gets an honest message.
+                        if (response.nearbyDegraded) {
+                          return const AppEmptyState(
+                            message:
+                                'Nearby places are unavailable right now. Try again in a moment, or search a place name.',
+                            icon: Icons.cloud_off,
+                          );
+                        }
                         return const AppEmptyState(
                           message: 'No matches found.',
                           icon: Icons.search_off,
@@ -81,9 +90,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       }
                       return ListView.builder(
                         padding: const EdgeInsets.all(AppSpacing.lg),
-                        itemCount: results.length,
+                        itemCount: response.results.length,
                         itemBuilder: (context, i) {
-                          final r = results[i];
+                          final r = response.results[i];
                           return ListTile(
                             leading: Icon(_iconFor(r.kind),
                                 color: AppColors.primary),

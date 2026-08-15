@@ -46,3 +46,16 @@ class SearchResult {
     );
   }
 }
+
+/// A global search response: the results plus whether the nearby (POI)
+/// provider was unavailable for this request, so callers can distinguish
+/// "no matches" from "matches exist but couldn't be fetched".
+class SearchResponse {
+  const SearchResponse({
+    required this.results,
+    required this.nearbyDegraded,
+  });
+
+  final List<SearchResult> results;
+  final bool nearbyDegraded;
+}
