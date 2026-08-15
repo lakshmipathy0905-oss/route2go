@@ -380,8 +380,12 @@ class _ComparisonCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _dataRow(context, 'Total',
-                      (r) => Text(formatCurrency(r.totalCost))),
+                  _dataRow(
+                      context,
+                      'Total',
+                      (r) => Text(r.fuelCost == null
+                          ? '—'
+                          : formatCurrency(r.totalCost))),
                   _deltaRow(context),
                 ],
               ),
@@ -483,19 +487,29 @@ class _ComparisonCard extends StatelessWidget {
           final costDelta = r.totalCost - recommended.totalCost;
           final timeDelta = r.durationMin - recommended.durationMin;
           final color = costDelta <= 0 ? AppColors.success : AppColors.error;
+          // When fuel estimates are unavailable, total costs are toll-only and
+          // a "vs recommended" cost delta would be misleading — show the time
+          // delta alone.
+          final fuelUnavailable =
+              r.fuelCost == null || recommended.fuelCost == null;
           return Padding(
             padding: const EdgeInsets.symmetric(
                 vertical: AppSpacing.md, horizontal: 4),
             child: Column(
               children: [
-                Text(
-                  '${costDelta == 0 ? '' : costDelta > 0 ? '+' : '−'}${formatCurrency(costDelta.abs())}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: color, fontWeight: FontWeight.w600),
-                ),
+                if (fuelUnavailable)
+                  const Text('—',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.w600))
+                else
+                  Text(
+                    '${costDelta == 0 ? '' : costDelta > 0 ? '+' : '−'}${formatCurrency(costDelta.abs())}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: color, fontWeight: FontWeight.w600),
+                  ),
                 Text(
                   '${timeDelta >= 0 ? '+' : '−'}${formatDuration(timeDelta.abs())}',
                   textAlign: TextAlign.center,

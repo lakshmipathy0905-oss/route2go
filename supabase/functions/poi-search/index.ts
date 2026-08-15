@@ -7,6 +7,7 @@
 
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { getPoiProvider } from "../_shared/providers/poiProvider.ts";
+import { checkRateLimit, clientKey } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
@@ -18,6 +19,20 @@ Deno.serve(async (req: Request) => {
       "Only GET is supported.",
       reqId,
       false,
+    );
+  }
+
+  // Public endpoint that proxies Overpass: guard the upstream server from
+  // being hammered through this function (bounded, per-isolate, IP-keyed).
+  const rateLimit = checkRateLimit(clientKey(req), 60, 60_000);
+  if (!rateLimit.allowed) {
+    return jsonError(
+      429,
+      "RATE_LIMITED",
+      "Too many requests. Try again shortly.",
+      reqId,
+      true,
+      { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)) },
     );
   }
 

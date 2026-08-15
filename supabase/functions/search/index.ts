@@ -13,6 +13,7 @@ import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { AuthError, authRequest } from "../_shared/auth.ts";
 import { getGeocodingProvider } from "../_shared/providers/geocodingProvider.ts";
 import { getPoiProvider } from "../_shared/providers/poiProvider.ts";
+import { checkRateLimit, clientKey } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
@@ -35,6 +36,15 @@ Deno.serve(async (req: Request) => {
       return jsonError(err.status, err.code, err.message, reqId, err.retryable);
     }
     return jsonError(500, "INTERNAL", "Unexpected error.", reqId, true);
+  }
+
+  // This endpoint also proxies the public geocoder/POI providers: bound how
+  // often one client key can hit them through us (per-isolate, IP-keyed).
+  const rateLimit = checkRateLimit(clientKey(req), 120, 60_000);
+  if (!rateLimit.allowed) {
+    return jsonError(429, "RATE_LIMITED", "Too many requests. Try again shortly.", reqId, true, {
+      "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)),
+    });
   }
 
   const url = new URL(req.url);

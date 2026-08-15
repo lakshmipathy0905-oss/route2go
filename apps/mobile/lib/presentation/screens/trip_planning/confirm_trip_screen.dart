@@ -52,8 +52,15 @@ class ConfirmTripScreen extends ConsumerWidget {
                       _row(context, 'Distance',
                           formatDistance(route.distanceKm)),
                       _row(context, 'Time', formatDuration(route.durationMin)),
-                      _row(context, 'Est. cost',
-                          formatCurrency(route.totalCost)),
+                      _row(
+                        context,
+                        'Est. cost',
+                        // Never show "₹0" when the fuel estimate is missing
+                        // (provider unavailable): that would read as a free trip.
+                        route.fuelCost == null
+                            ? 'Unavailable'
+                            : formatCurrency(route.totalCost),
+                      ),
                     ],
                     _row(context, 'Places selected',
                         '${selection.places.length}'),

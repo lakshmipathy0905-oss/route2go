@@ -39,6 +39,7 @@ export function jsonError(
   message: string,
   reqId: string,
   retryable: boolean,
+  headers?: Record<string, string>,
 ): Response {
   return new Response(
     JSON.stringify({
@@ -49,7 +50,11 @@ export function jsonError(
     }),
     {
       status,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+        ...headers,
+      },
     },
   );
 }

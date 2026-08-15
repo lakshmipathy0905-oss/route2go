@@ -6,12 +6,22 @@
 
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { getGeocodingProvider } from "../_shared/providers/geocodingProvider.ts";
+import { checkRateLimit, clientKey } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
 
   if (req.method !== "GET") {
     return jsonError(405, "METHOD_NOT_ALLOWED", "Only GET is supported.", reqId, false);
+  }
+
+  // Public endpoint: guard the upstream geocoder from being hammered through
+  // this function (bounded, per-isolate, IP-keyed).
+  const rateLimit = checkRateLimit(clientKey(req), 120, 60_000);
+  if (!rateLimit.allowed) {
+    return jsonError(429, "RATE_LIMITED", "Too many requests. Try again shortly.", reqId, true, {
+      "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)),
+    });
   }
 
   const url = new URL(req.url);

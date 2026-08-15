@@ -239,3 +239,17 @@ upgrades and verifies every screen flow. All checks green.
 - `jsonOk` gained a backwards-compatible optional extra-field arg.
 - On-device re-verified: global search "cafes near me" → 10 real Mysuru cafes.
 - Deno tests 71/71 (2 new); flutter analyze/test green; apk rebuilt + reinstalled.
+
+### Review-feedback fixes (same session, committed separately)
+
+- **Public-endpoint rate limiting**: `/geocode`, `/poi-search`, `/search` now
+  enforce a lightweight per-isolate, IP-keyed fixed-window limit
+  (`_shared/rateLimit.ts`, 429 + `Retry-After`), so the open (verify_jwt=false)
+  functions can't be used as an unmetered proxy to hammer Overpass/Photon —
+  if abused, the public mirrors would ban *our* function IP, not the caller's.
+- **Honest cost display**: when the fuel estimate is unavailable, the Confirm
+  screen shows "Unavailable" (was "₹0" — read as a free trip) and the route
+  comparison "Total"/delta rows show "—" instead of a toll-only partial total.
+  Root cause of the on-device ₹0: a transient fuel-prices table lookup failure;
+  re-verified on-device: Confirm now shows Est. cost ₹1082 for BLR→Mysuru.
+- `jsonError` gained an optional headers param (Retry-After); deno tests 76/76.
