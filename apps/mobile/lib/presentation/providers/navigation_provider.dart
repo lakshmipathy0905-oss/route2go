@@ -135,29 +135,66 @@ class NavigationNotifier extends Notifier<NavigationState> {
     return const NavigationState();
   }
 
-  /// Starts navigation from the trip already selected in Phase 1 (the active
+  /// Starts navigation using the trip already selected in Phase 1 (the active
   /// RouteOption carries geometry + steps). Resolves a current GPS position,
   /// subscribes to the live stream, and enters [NavigationStatus.navigating].
+  ///
+  /// This is the trip-planning entry point. The direct (no-trip) entry point is
+  /// [startNavigation], which [start] delegates to so both flows share the same
+  /// route-install + location + GPS wiring.
   Future<void> start() async {
     final form = ref.read(tripPlanningFormProvider);
     final calc = ref.read(tripCalculationProvider).valueOrNull;
-    if (!form.isReadyToCalculate || calc == null || calc.routes.isEmpty) return;
+    if (!form.isReadyToCalculate ||
+        calc == null ||
+        calc.routes.isEmpty) return;
 
     final route = selectRoute(calc, ref.read(selectedRouteTypeProvider));
     if (route == null) return;
 
+    final origin = NavStop(
+      label: form.originLabel ?? 'Start',
+      lat: form.originLat!,
+      lng: form.originLng!,
+    );
     final destination = NavStop(
       label: form.destinationLabel!,
       lat: form.destinationLat!,
       lng: form.destinationLng!,
     );
 
+    await startNavigation(
+      route: route,
+      origin: origin,
+      destination: destination,
+      originLabel: form.originLabel,
+    );
+  }
+
+  /// Direct-navigation entry point (Phase 3A): begins navigation from an
+  /// already-fetched route WITHOUT requiring a saved trip or the trip-planning
+  /// form. [origin] is normally the user's current GPS position; [destination]
+  /// is the selected place. [waypoints] are empty for a new navigation session.
+  ///
+  /// This is what the "Get Directions → Start Navigation" path calls:
+  ///   origin = device GPS -> fetchRoute() -> startNavigation(route, ...) -> push LiveTrip
+  ///
+  /// The route-install + location-permission + GPS subscription logic is shared
+  /// with the trip-flow [start] so navigation behaviour is identical whether a
+  /// trip was planned or not.
+  Future<void> startNavigation({
+    required RouteOption route,
+    required NavStop origin,
+    required NavStop destination,
+    List<NavStop> waypoints = const [],
+    String? originLabel,
+  }) async {
     state = NavigationState(
       status: NavigationStatus.starting,
       route: route,
-      originLabel: form.originLabel,
+      originLabel: originLabel ?? origin.label,
       destination: destination,
-      waypoints: const [],
+      waypoints: waypoints,
       voiceMuted: state.voiceMuted,
     );
 

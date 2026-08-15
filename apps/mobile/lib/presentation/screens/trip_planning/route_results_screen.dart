@@ -7,12 +7,17 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
+import '../../../data/repositories/geocoding_repository.dart';
 import '../../providers/trip_planning_provider.dart';
+import '../../providers/live_trip_provider.dart';
 import '../../providers/places_provider.dart';
 import '../../providers/stays_provider.dart';
 import '../../providers/itinerary_provider.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/sharing_widgets.dart';
+import '../../widgets/permission_explainer.dart';
+import '../../../domain/entities/navigation.dart';
+import '../../../domain/entities/geo.dart';
 import '../../../domain/entities/route_option.dart';
 
 class RouteResultsScreen extends ConsumerStatefulWidget {
@@ -154,6 +159,15 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
                   },
                 ),
                 const SizedBox(height: AppSpacing.xl),
+                _StartNavigationCta(
+                  route: selected ?? recommended,
+                  destination: NavStop(
+                    label: ref.read(tripPlanningFormProvider).destinationLabel ??
+                        (selected?.label ?? recommended.label),
+                    lat: ref.read(tripPlanningFormProvider).destinationLat ?? 0,
+                    lng: ref.read(tripPlanningFormProvider).destinationLng ?? 0,
+                  ),
+                ),
               ],
             );
           },
@@ -551,5 +565,72 @@ class _FlowCta extends StatelessWidget {
         onTap: onTap,
       ),
     );
+  }
+}
+
+/// Direct "Start Navigation" entry (Phase 3A). Lets the user begin turn-by-turn
+/// navigation from the selected route WITHOUT building a trip / budgeting /
+/// itinerary / confirm. Uses the existing navigation engine and the current
+/// GPS location as the origin.
+class _StartNavigationCta extends ConsumerWidget {
+  const _StartNavigationCta({
+    required this.route,
+    required this.destination,
+  });
+
+  final RouteOption route;
+  final NavStop destination;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FilledButton.icon(
+      onPressed: () => _start(context, ref),
+      icon: const Icon(Icons.navigation),
+      label: const Text('Start navigation'),
+    );
+  }
+
+  Future<NavStop?> _resolveOrigin(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final geoRepo = ref.read(geocodingRepositoryProvider);
+    final device = await geoRepo.deviceLocation();
+    if (device != null) {
+      return NavStop(label: device.label, lat: device.lat, lng: device.lng);
+    }
+
+    final explainer = PermissionExplainer(
+      icon: Icons.my_location_outlined,
+      title: 'Enable location to navigate',
+      reasons: const [
+        'Route2Go uses your current location as the start of the route.',
+        'Location is only used while navigating and is never stored or shared.',
+      ],
+      permissionLabel: 'Continue',
+      onRequest: () {},
+    );
+    await explainer.showModal(context);
+    if (!context.mounted) return null;
+    final picked = await GoRouter.of(context).push<GeoPlace>(
+      AppRoutes.locationPicker,
+      extra: 'origin',
+    );
+    if (picked == null || !context.mounted) return null;
+    return NavStop(label: picked.label, lat: picked.lat, lng: picked.lng);
+  }
+
+  Future<void> _start(BuildContext context, WidgetRef ref) async {
+    final origin = await _resolveOrigin(context, ref);
+    if (origin == null || !context.mounted) return;
+
+    await ref.read(liveTripProvider.notifier).startDirect(
+          originLabel: origin.label,
+          destination: destination,
+          route: route,
+          waypoints: const [],
+        );
+
+    if (context.mounted) context.push(AppRoutes.liveTrip);
   }
 }

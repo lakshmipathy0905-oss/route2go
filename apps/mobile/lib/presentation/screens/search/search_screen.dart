@@ -6,8 +6,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
+import '../../../data/repositories/geocoding_repository.dart';
+import '../../../domain/entities/navigation.dart';
+import '../../../domain/entities/geo.dart';
+import '../../../domain/entities/misc_entities.dart';
+import '../../providers/trip_planning_provider.dart';
 import '../../providers/favorites_search_provider.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/permission_explainer.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -100,8 +106,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             subtitle: Text(
                                 '${_labelFor(r.kind)} · ${r.subtitle}',
                                 style: Theme.of(context).textTheme.bodySmall),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => _open(r.kind, r.id),
+                            trailing: _navigateTrailing(r, context),
+                            onTap: () => _open(r.kind, r.id, r),
                           );
                         },
                       );
@@ -146,22 +152,147 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
-  void _open(String kind, String id) {
+  void _open(String kind, String id, SearchResult? result) {
     switch (kind) {
       case 'place':
-        context.push(AppRoutes.placeDetailOf(id));
+        if (result != null && result.lat != null && result.lng != null) {
+          // Show place detail; direct navigation is available via the Navigate
+          // icon on the search row.
+          context.push(AppRoutes.placeDetailOf(id));
+        } else {
+          context.push(AppRoutes.placeDetailOf(id));
+        }
         break;
       case 'saved_trip':
         context.push(AppRoutes.tripDetailOf(id));
         break;
       case 'nearby':
-        // A worldwide address/POI result — start planning a route to it.
-        context.push(AppRoutes.planTrip);
+        // A worldwide address/POI result. If it has coordinates, offer direct
+        // navigation (handled by the Navigate icon); otherwise fall back to the
+        // trip planner.
+        if (result == null || result.lat == null || result.lng == null) {
+          context.push(AppRoutes.planTrip);
+        }
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Opening $_labelFor(kind)…')),
+          SnackBar(content: Text('Opening ${_labelFor(kind)}…')),
         );
     }
+  }
+
+  Widget _navigateTrailing(SearchResult r, BuildContext context) {
+    // Direct "Go" path: navigate to this place (current location -> here)
+    // without creating a trip. Only offered for routable geo results.
+    if ((r.kind == 'place' || r.kind == 'nearby') &&
+        r.lat != null &&
+        r.lng != null) {
+      return IconButton(
+        tooltip: 'Navigate to ${_labelFor(r.kind == 'nearby' ? 'nearby' : 'place').toLowerCase()}',
+        icon: const Icon(Icons.navigation, color: AppColors.primary),
+        onPressed: () => _getDirections(r, context),
+        visualDensity: VisualDensity.compact,
+      );
+    }
+    return const Icon(Icons.chevron_right);
+  }
+
+  Future<void> _getDirections(SearchResult result, BuildContext context) async {
+    final repo = ref.read(geocodingRepositoryProvider);
+    final navigator = GoRouter.of(context);
+
+    // Resolve a start point. Prefer the device GPS (requesting permission first
+    // via the in-app explainer); fall back to the location picker otherwise.
+    late NavStop origin;
+    final device = await repo.deviceLocation();
+    if (device != null) {
+      origin = NavStop(label: device.label, lat: device.lat, lng: device.lng);
+    } else {
+      final explainer = PermissionExplainer(
+        icon: Icons.my_location_outlined,
+        title: 'Enable location to navigate',
+        reasons: const [
+          'Route2Go will use your current location as the start of the route.',
+          'Location is only used while navigating and is never stored or shared.',
+        ],
+        permissionLabel: 'Continue',
+        onRequest: () {},
+      );
+      await explainer.showModal(context);
+      if (!context.mounted) return;
+      final picked = await navigator.push<GeoPlace>(
+        AppRoutes.locationPicker,
+        extra: 'origin',
+      );
+      if (picked == null || !mounted) return;
+      origin = NavStop(label: picked.label, lat: picked.lat, lng: picked.lng);
+    }
+
+    final destination = NavStop(
+      label: result.title,
+      lat: result.lat!,
+      lng: result.lng!,
+    );
+
+    // Prime the shared trip-form + calculation providers with this direct
+    // origin/destination so the existing RouteResultsScreen (route preview +
+    // alternatives) renders. Nothing is persisted — this is a transient
+    // navigation session only.
+    ref.read(tripPlanningFormProvider.notifier).state = TripPlanningForm(
+      originLabel: origin.label,
+      originLat: origin.lat,
+      originLng: origin.lng,
+      destinationLabel: destination.label,
+      destinationLat: destination.lat,
+      destinationLng: destination.lng,
+      tripType: 'one_way',
+      travellers: 1,
+      fuelType: 'petrol',
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _CalculatingRoutesDialog(),
+    );
+    ref.read(tripCalculationProvider.notifier).calculate();
+    final calc = await ref.read(tripCalculationProvider.future);
+    if (!mounted) return;
+    Navigator.of(context).pop(); // dismiss loading dialog
+
+    if (calc == null || calc.routes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No route available for this destination.')),
+      );
+      return;
+    }
+
+    // Reset the selected alternative to recommended for the preview.
+    ref.read(selectedRouteTypeProvider.notifier).state = 'recommended';
+    if (context.mounted) context.push(AppRoutes.routeResults);
+  }
+}
+
+class _CalculatingRoutesDialog extends StatelessWidget {
+  const _CalculatingRoutesDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AlertDialog(
+      backgroundColor: Colors.white,
+      content: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 16),
+          Text('Calculating route…'),
+        ],
+      ),
+    );
   }
 }

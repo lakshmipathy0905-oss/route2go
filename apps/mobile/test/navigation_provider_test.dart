@@ -321,4 +321,45 @@ void main() {
       expect(container.read(navigationProvider).voiceMuted, isFalse);
     });
   });
+
+  group('NavigationNotifier direct startNavigation (no trip required)', () {
+    test('startNavigation installs the route and navigates from GPS', () async {
+      final repo = _FakeNavRepository();
+      final container = _container(location: onRoute(), repo: repo);
+      final notifier = container.read(navigationProvider.notifier);
+
+      final route = _route(geometry: _FakeNavRepository.geometry);
+
+      await notifier.startNavigation(
+        route: route,
+        origin: const NavStop(label: 'Current location', lat: 0, lng: 0),
+        destination: const NavStop(label: 'Kahale', lat: 0, lng: 1),
+      );
+
+      // No trip form / calculation is required: navigation starts directly.
+      expect(container.read(navigationProvider).status, NavigationStatus.starting);
+      expect(container.read(navigationProvider).destination!.label, 'Kahale');
+      expect(container.read(navigationProvider).route, same(route));
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      final state = container.read(navigationProvider);
+      expect(state.status, NavigationStatus.navigating);
+      expect(state.position, isNotNull);
+      expect(state.progress, isNotNull);
+    });
+
+    test('the trip-flow start() delegates to startNavigation unchanged',
+        () async {
+      // Reuses the existing trip-form overrides already in _container.
+      final container = _container(location: onRoute());
+      await _startNavigation(container);
+
+      final state = container.read(navigationProvider);
+      expect(state.status, NavigationStatus.starting);
+      expect(state.destination!.label, 'Dest');
+      // The route is installed from the trip calculation result.
+      expect(state.route, isNotNull);
+      expect(state.route!.provider, 'test-fixture');
+    });
+  });
 }
