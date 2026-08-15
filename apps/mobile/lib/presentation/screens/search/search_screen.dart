@@ -108,6 +108,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   IconData _iconFor(String kind) {
     switch (kind) {
       case 'place':
+      case 'nearby':
         return Icons.place_outlined;
       case 'hotel':
         return Icons.hotel_outlined;
@@ -123,6 +124,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _labelFor(String kind) {
     switch (kind) {
       case 'place':
+      case 'nearby':
         return 'Place';
       case 'hotel':
         return 'Hotel';
@@ -142,6 +144,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         break;
       case 'saved_trip':
         context.push(AppRoutes.tripDetailOf(id));
+        break;
+      case 'nearby':
+        // A worldwide address/POI result — start planning a route to it.
+        context.push(AppRoutes.planTrip);
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(

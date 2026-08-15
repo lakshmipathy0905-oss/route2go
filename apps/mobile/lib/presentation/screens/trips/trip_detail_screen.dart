@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../providers/trips_provider.dart';
@@ -71,6 +74,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   '${t.tripType == 'round_trip' ? 'Round trip' : 'One-way'} · ${t.travellers} traveller${t.travellers == 1 ? '' : 's'} · ${t.status}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                _TripRouteMapCard(trip: t),
                 const SizedBox(height: AppSpacing.lg),
                 Card(
                   child: Padding(
@@ -265,3 +270,170 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 // ignore: non_constant_identifier_names
 String tripLabelSafe(TripSummary t) =>
     '${t.originLabel} → ${t.destinationLabel}';
+
+class _TripRouteMapCard extends ConsumerStatefulWidget {
+  const _TripRouteMapCard({required this.trip});
+
+  final TripSummary trip;
+
+  @override
+  ConsumerState<_TripRouteMapCard> createState() => _TripRouteMapCardState();
+}
+
+class _TripRouteMapCardState extends ConsumerState<_TripRouteMapCard> {
+  final MapController _mapController = MapController();
+  bool _fitted = false;
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_fitted) {
+      _fitted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fit());
+    }
+  }
+
+  LatLngBounds? _bounds(TripSummary t) {
+    LatLngBounds? b;
+    void add(double lat, double lng) {
+      final pt = LatLng(lat, lng);
+      if (b == null) {
+        b = LatLngBounds(pt, pt);
+      } else {
+        b!.extend(pt);
+      }
+    }
+
+    if (t.originLat != null && t.originLng != null) {
+      add(t.originLat!, t.originLng!);
+    }
+    if (t.destinationLat != null && t.destinationLng != null) {
+      add(t.destinationLat!, t.destinationLng!);
+    }
+    for (final p in t.bestRouteCoordinates ?? const <List<double>>[]) {
+      if (p.length >= 2) add(p[1], p[0]);
+    }
+    return b;
+  }
+
+  void _fit() {
+    if (!mounted) return;
+    final bounds = _bounds(widget.trip);
+    if (bounds == null) return;
+    _mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.trip;
+    final coords = t.bestRouteCoordinates;
+    final endpoints = t.originLat != null &&
+        t.originLng != null &&
+        t.destinationLat != null &&
+        t.destinationLng != null;
+
+    if (coords == null && !endpoints) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            children: [
+              Icon(Icons.map_outlined, color: AppColors.textSecondary),
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  'No route map yet — calculate a route for this trip.',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 220,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: FlutterMap(
+                mapController: _mapController,
+                options: const MapOptions(
+                  initialCenter: LatLng(20.0, 78.0),
+                  initialZoom: 5,
+                  interactionOptions: InteractionOptions(
+                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  ),
+                ),
+                children: [
+                  const Route2GoTileLayer(),
+                  if (coords != null)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points:
+                              coords.map((p) => LatLng(p[1], p[0])).toList(),
+                          strokeWidth: 5,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      if (t.originLat != null && t.originLng != null)
+                        Marker(
+                          point: LatLng(t.originLat!, t.originLng!),
+                          width: 36,
+                          height: 36,
+                          child: const Icon(Icons.trip_origin,
+                              size: 36, color: AppColors.primary),
+                        ),
+                      if (t.destinationLat != null && t.destinationLng != null)
+                        Marker(
+                          point: LatLng(t.destinationLat!, t.destinationLng!),
+                          width: 36,
+                          height: 36,
+                          child: const Icon(Icons.location_on,
+                              size: 36, color: AppColors.error),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (endpoints)
+              Positioned(
+                bottom: AppSpacing.sm,
+                left: AppSpacing.sm,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                  ),
+                  child: Text(
+                    '${t.originLabel} → ${t.destinationLabel}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

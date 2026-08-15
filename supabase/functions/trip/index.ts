@@ -33,15 +33,16 @@ Deno.serve(async (req: Request) => {
       .select(`
         id, origin_label, destination_label, trip_type, start_date, end_date,
         travellers, budget_total, status, created_at,
-        routes ( total_cost, duration_min, distance_km )
+        origin_lat, origin_lng, destination_lat, destination_lng,
+        routes ( total_cost, duration_min, distance_km, geometry )
       `)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) return jsonError(500, "DB_ERROR", "Could not load trips.", reqId, true);
 
     const summary = (trips ?? []).map((t) => {
-      const routes = (t.routes ?? []) as Array<{ total_cost: number | null; duration_min: number | null; distance_km: number | null }>;
-      let best: { total_cost: number | null; duration_min: number | null; distance_km: number | null } | null = null;
+      const routes = (t.routes ?? []) as Array<{ total_cost: number | null; duration_min: number | null; distance_km: number | null; geometry: unknown }>;
+      let best: { total_cost: number | null; duration_min: number | null; distance_km: number | null; geometry: unknown } | null = null;
       for (const r of routes) {
         if (!best || (r.total_cost !== null && (best.total_cost === null || r.total_cost < best.total_cost))) {
           best = r;
@@ -58,6 +59,11 @@ Deno.serve(async (req: Request) => {
         budget_total: t.budget_total,
         status: t.status,
         created_at: t.created_at,
+        origin_lat: t.origin_lat,
+        origin_lng: t.origin_lng,
+        destination_lat: t.destination_lat,
+        destination_lng: t.destination_lng,
+        best_route_geometry: best?.geometry ?? null,
         best_route_cost: best?.total_cost ?? null,
         best_duration_min: best?.duration_min ?? null,
         best_distance_km: best?.distance_km ?? null,

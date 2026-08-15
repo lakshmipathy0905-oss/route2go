@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/local/preferences_store.dart';
 import '../../data/repositories/favorites_repository.dart';
 import '../../data/repositories/search_repository.dart';
 import '../../domain/entities/misc_entities.dart';
@@ -44,7 +45,20 @@ class SearchNotifier extends AsyncNotifier<List<SearchResult>> {
     }
     state = const AsyncLoading();
     final repo = ref.read(searchRepositoryProvider);
-    state = await AsyncValue.guard(() => repo.search(trimmed));
+    // Pass the last used location (if any) so category queries like "cafes
+    // near me" can also surface nearby POIs from the server.
+    final store = ref.read(preferencesStoreProvider).valueOrNull;
+    double? lat;
+    double? lng;
+    if (store != null) {
+      final recents = store.getRecentLocations();
+      if (recents.isNotEmpty) {
+        lat = recents.first.lat;
+        lng = recents.first.lng;
+      }
+    }
+    state =
+        await AsyncValue.guard(() => repo.search(trimmed, lat: lat, lng: lng));
   }
 }
 

@@ -99,5 +99,8 @@ verify_jwt = false
 [functions.geocode]
 verify_jwt = false
 
+[functions.poi-search]
+verify_jwt = false
+
 [functions.admin]
 verify_jwt = false

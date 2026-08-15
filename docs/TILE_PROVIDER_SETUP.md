@@ -34,6 +34,22 @@ flutter run \
 The attribution shown on the route results map always matches the configured
 template.
 
+## Optional styled provider with automatic OSM fallback
+
+A free-tier styled tile provider can be enabled at build time:
+
+```bash
+flutter run \
+  --dart-define=MAP_TILE_STYLE_URL_TEMPLATE=https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png \
+  --dart-define=MAP_TILE_STYLE_ATTRIBUTION='© OpenStreetMap contributors © CARTO'
+```
+
+When `MAP_TILE_STYLE_URL_TEMPLATE` is set, every map screen
+(`Route2GoTileLayer`) renders the styled tiles first and falls back to the
+default OSM tiles automatically on the first tile error (bad key, quota,
+flaky network) — the map never shows a blank grid. Without the styled
+define, behaviour is unchanged: OSM tiles only.
+
 ## Compliance notes
 
 - Attribution is **required** by OpenStreetMap's tile policy — Route2Go shows

@@ -17,6 +17,15 @@ abstract class GeocodingProvider {
 
   /// Reverse geocoding: lat/lng -> human-readable label for a map pin.
   Future<GeoPlace?> reverseGeocode(double lat, double lng);
+
+  /// Category POI search around a point (worldwide OSM via Overpass).
+  /// Empty list is a legitimate "no places of this type nearby".
+  Future<List<GeoPlace>> searchNear(
+    String query, {
+    required double lat,
+    required double lng,
+    double radiusKm,
+  });
 }
 
 /// Default provider: the Supabase `/geocode` edge function. The edge function
@@ -49,6 +58,39 @@ class SupabaseGeocodingProvider extends BaseRepository
     final list = parseList(res, GeoPlace.fromJson);
     return list.isNotEmpty ? list.first : null;
   }
+
+  @override
+  Future<List<GeoPlace>> searchNear(
+    String query, {
+    required double lat,
+    required double lng,
+    double radiusKm = 10,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.length < 2) return const [];
+    final res = await _apiClient.get(
+      '/poi-search',
+      queryParameters: {
+        'q': trimmed,
+        'lat': '$lat',
+        'lng': '$lng',
+        'radius_km': '$radiusKm',
+      },
+      allowGuest: true,
+    );
+    final data = res['data'];
+    if (data is! List) return const [];
+    return data
+        .map((e) => e as Map<String, dynamic>)
+        .map((m) => GeoPlace(
+              label: (m['name'] as String?) ?? '',
+              subtitle: (m['category'] as String?)?.replaceAll('_', ' '),
+              lat: (m['lat'] as num).toDouble(),
+              lng: (m['lng'] as num).toDouble(),
+            ))
+        .where((p) => p.label.isNotEmpty)
+        .toList();
+  }
 }
 
 /// Deterministic, offline provider for tests and offline-only builds. Select
@@ -68,6 +110,50 @@ class MockGeocodingProvider implements GeocodingProvider {
       (p) => (p.lat - lat).abs() < 0.05 && (p.lng - lng).abs() < 0.05,
     );
     return hits.isNotEmpty ? hits.first : null;
+  }
+
+  @override
+  Future<List<GeoPlace>> searchNear(
+    String query, {
+    required double lat,
+    required double lng,
+    double radiusKm = 10,
+  }) async {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    if (q.contains('cafe') || q.contains('coffee')) {
+      return const [
+        GeoPlace(
+          label: 'Blue Tokai Coffee Roasters',
+          subtitle: 'cafe',
+          lat: 12.9745,
+          lng: 77.6110,
+        ),
+        GeoPlace(
+          label: 'Third Wave Coffee',
+          subtitle: 'cafe',
+          lat: 12.9683,
+          lng: 77.5942,
+        ),
+        GeoPlace(
+          label: 'Cafe Coffee Day',
+          subtitle: 'cafe',
+          lat: 12.9792,
+          lng: 77.5904,
+        ),
+      ];
+    }
+    if (q.contains('fuel') || q.contains('petrol') || q.contains('gas')) {
+      return const [
+        GeoPlace(
+          label: 'Indian Oil Petrol Pump',
+          subtitle: 'fuel station',
+          lat: 12.9725,
+          lng: 77.6084,
+        ),
+      ];
+    }
+    return const [];
   }
 
   static const List<GeoPlace> _fixtures = [

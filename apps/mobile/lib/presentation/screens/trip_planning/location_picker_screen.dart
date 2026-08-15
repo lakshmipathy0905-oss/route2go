@@ -49,7 +49,6 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tileConfig = ref.watch(mapTileConfigProvider);
     return Scaffold(
       appBar: AppBar(
           title: Text(widget.target == 'origin'
@@ -134,11 +133,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                     }),
                   ),
                   children: [
-                    TileLayer(
-                      urlTemplate: tileConfig.urlTemplate,
-                      tileProvider: tileConfig.buildTileProvider(),
-                      userAgentPackageName: tileConfig.userAgentPackageName,
-                    ),
+                    const Route2GoTileLayer(),
                     MarkerLayer(
                       markers: [
                         Marker(
@@ -222,17 +217,35 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
       _searching = true;
       _searchFailed = false;
     });
+    final repo = ref.read(geocodingRepositoryProvider);
     try {
-      final results = await ref.read(geocodingRepositoryProvider).geocode(q);
+      final results = await repo.geocode(q);
       if (!mounted || _searchCtrl.text.trim() != q) return;
+      var merged = results;
+      if (results.isNotEmpty) {
+        _pinCenter = LatLng(results.first.lat, results.first.lng);
+      }
+      // Category queries (e.g. "cafes near me") also surface nearby POIs from
+      // Overpass via /poi-search, using the map pin as the "near" reference.
+      // Best-effort: a POI failure must never break plain address search.
+      if (_isPoiQuery(q)) {
+        try {
+          final pois = await repo.searchNear(
+            q,
+            lat: _pinCenter.latitude,
+            lng: _pinCenter.longitude,
+          );
+          if (!mounted || _searchCtrl.text.trim() != q) return;
+          merged = _mergeSearchResults(results, pois);
+        } catch (_) {/* best-effort POI search */}
+      }
       setState(() {
-        _results = results;
+        _results = merged;
         _searching = false;
         _searched = true;
       });
-      if (results.isNotEmpty) {
-        setState(
-            () => _pinCenter = LatLng(results.first.lat, results.first.lng));
+      if (merged.isNotEmpty) {
+        setState(() => _pinCenter = LatLng(merged.first.lat, merged.first.lng));
       }
     } catch (e) {
       if (!mounted) return;
@@ -242,6 +255,57 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
         _searchError = 'Search is temporarily unavailable.';
       });
     }
+  }
+
+  static bool _isPoiQuery(String q) {
+    const keywords = [
+      'cafe',
+      'coffee',
+      'restaurant',
+      'food',
+      'fuel',
+      'petrol',
+      'gas',
+      'charging',
+      'ev',
+      'hospital',
+      'pharmacy',
+      'medical',
+      'atm',
+      'bank',
+      'parking',
+      'hotel',
+      'hostel',
+      'museum',
+      'attraction',
+      'park',
+      'playground',
+      'school',
+      'college',
+      'university',
+      'temple',
+      'church',
+      'mosque',
+      'airport',
+      'station',
+      'supermarket',
+      'grocery',
+      'mall',
+      'bakery',
+    ];
+    final lq = q.toLowerCase();
+    return keywords.any(lq.contains);
+  }
+
+  static List<GeoPlace> _mergeSearchResults(
+      List<GeoPlace> geocode, List<GeoPlace> pois) {
+    final seen = <String>{};
+    final out = <GeoPlace>[];
+    for (final p in [...geocode, ...pois]) {
+      final key = '${p.lat.toStringAsFixed(3)},${p.lng.toStringAsFixed(3)}';
+      if (seen.add(key)) out.add(p);
+    }
+    return out;
   }
 
   Future<void> _useGps() async {

@@ -366,7 +366,6 @@ class _NavMap extends ConsumerWidget {
     final coords = route?.geometryCoordinates;
     final initialPosition =
         ref.read(navigationProvider.select((s) => s.position));
-    final tileConfig = ref.watch(mapTileConfigProvider);
 
     return FlutterMap(
       mapController: mapController,
@@ -386,11 +385,7 @@ class _NavMap extends ConsumerWidget {
         ),
       ),
       children: [
-        TileLayer(
-          urlTemplate: tileConfig.urlTemplate,
-          tileProvider: tileConfig.buildTileProvider(),
-          userAgentPackageName: tileConfig.userAgentPackageName,
-        ),
+        const Route2GoTileLayer(),
         if (coords != null && coords.length >= 2)
           PolylineLayer(
             polylines: [
@@ -691,7 +686,8 @@ class _ProgressCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('ETA', style: Theme.of(context).textTheme.bodyMedium),
+                Text('Est. arrival',
+                    style: Theme.of(context).textTheme.bodyMedium),
                 Text(
                   eta != null
                       ? _formatEta(eta, progress!.remainingDurationMin)
@@ -720,7 +716,7 @@ class _ProgressCard extends ConsumerWidget {
     if (remainingMinutes < 60) return '$remainingMinutes min';
     final h = eta.hour.toString().padLeft(2, '0');
     final m = eta.minute.toString().padLeft(2, '0');
-    return 'ETA $h:$m';
+    return '$h:$m';
   }
 
   String _statusLabel(NavigationStatus status) {

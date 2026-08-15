@@ -32,8 +32,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       final store = await ref.read(preferencesStoreProvider.future);
       if (!mounted || _handled) return;
       _handled = true;
-      context.go(
-          store.onboardingComplete ? AppRoutes.home : AppRoutes.onboarding);
+      context
+          .go(store.onboardingComplete ? AppRoutes.home : AppRoutes.onboarding);
     } catch (_) {
       if (!mounted || _handled) return;
       _handled = true;

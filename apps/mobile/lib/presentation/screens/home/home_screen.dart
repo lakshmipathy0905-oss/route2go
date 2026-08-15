@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
+import '../../../data/repositories/geocoding_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/trips_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/permission_explainer.dart';
 import '../../widgets/sharing_widgets.dart';
 import '../../widgets/guest_gate.dart';
 import '../../widgets/phase2_gate.dart';
@@ -248,35 +253,350 @@ class _MapTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // A plain interactive map with markers for recently picked locations.
-    // Route geometry overlays are drawn in the per-trip detail; this tab is
-    // a lightweight corridor view, not live routing.
-    return const _CorridorMap();
+    final isLoggedIn = ref.watch(isLoggedInProvider);
+    final trips = ref.watch(tripsProvider).valueOrNull ?? const <TripSummary>[];
+    final hasTrips = isLoggedIn && trips.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: _SavedTripsMap(trips: hasTrips ? trips : const [])),
+        const SizedBox(height: AppSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: SectionHeader(
+            title: hasTrips ? 'Saved routes' : 'Your trips',
+          ),
+        ),
+        SizedBox(
+          height: 128,
+          child: hasTrips
+              ? ListView.builder(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: trips.length,
+                  itemBuilder: (context, i) => _TripRouteCard(
+                    trip: trips[i],
+                    color: _kTripPalette[i % _kTripPalette.length],
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Text(
+                    isLoggedIn
+                        ? 'Plan a trip and its route will show here.'
+                        : 'Sign in to see your saved routes on the map.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+      ],
+    );
   }
 }
 
-class _CorridorMap extends StatelessWidget {
-  const _CorridorMap();
+const _kTripPalette = [
+  AppColors.primary,
+  AppColors.accent,
+  AppColors.info,
+  AppColors.warning,
+];
+
+class _SavedTripsMap extends ConsumerStatefulWidget {
+  const _SavedTripsMap({required this.trips});
+
+  final List<TripSummary> trips;
+
+  @override
+  ConsumerState<_SavedTripsMap> createState() => _SavedTripsMapState();
+}
+
+class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
+  final MapController _mapController = MapController();
+  bool _fitted = false;
+  bool _locating = false;
+  LatLng? _currentLocation;
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SavedTripsMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trips != widget.trips) _fitted = false;
+  }
+
+  LatLngBounds? _bounds() {
+    LatLngBounds? b;
+    void add(double lat, double lng) {
+      final pt = LatLng(lat, lng);
+      if (b == null) {
+        b = LatLngBounds(pt, pt);
+      } else {
+        b!.extend(pt);
+      }
+    }
+
+    for (final t in widget.trips) {
+      if (t.originLat != null && t.originLng != null) {
+        add(t.originLat!, t.originLng!);
+      }
+      if (t.destinationLat != null && t.destinationLng != null) {
+        add(t.destinationLat!, t.destinationLng!);
+      }
+      for (final p in t.bestRouteCoordinates ?? const <List<double>>[]) {
+        if (p.length >= 2) add(p[1], p[0]);
+      }
+    }
+    return b;
+  }
+
+  void _fit() {
+    if (_fitted) return;
+    _fitted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final bounds = _bounds();
+      if (bounds == null) return;
+      _mapController.fitCamera(
+        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer(builder: (context, ref, _) {
-      return const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final trips = widget.trips;
+    if (!_fitted) _fit();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: HintText(
-                'Places you picked recently appear here. Open a saved trip for its route map.'),
+          Positioned.fill(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: const MapOptions(
+                initialCenter: LatLng(20.0, 78.0),
+                initialZoom: 5,
+                interactionOptions: InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
+              ),
+              children: [
+                const Route2GoTileLayer(),
+                if (trips.isNotEmpty)
+                  PolylineLayer(
+                    polylines: [
+                      for (var i = 0; i < trips.length; i++)
+                        if (trips[i].bestRouteCoordinates != null)
+                          Polyline(
+                            points: _toLatLng(trips[i].bestRouteCoordinates!),
+                            strokeWidth: 5,
+                            color: _kTripPalette[i % _kTripPalette.length],
+                          ),
+                    ],
+                  ),
+                if (trips.isNotEmpty)
+                  MarkerLayer(
+                    markers: [
+                      for (var i = 0; i < trips.length; i++) ...[
+                        if (trips[i].originLat != null &&
+                            trips[i].originLng != null)
+                          Marker(
+                            point: LatLng(
+                                trips[i].originLat!, trips[i].originLng!),
+                            width: 36,
+                            height: 36,
+                            child: const Icon(Icons.trip_origin,
+                                size: 36, color: AppColors.primary),
+                          ),
+                        if (trips[i].destinationLat != null &&
+                            trips[i].destinationLng != null)
+                          Marker(
+                            point: LatLng(trips[i].destinationLat!,
+                                trips[i].destinationLng!),
+                            width: 36,
+                            height: 36,
+                            child: const Icon(Icons.location_on,
+                                size: 36, color: AppColors.error),
+                          ),
+                      ],
+                      if (_currentLocation != null)
+                        Marker(
+                          point: _currentLocation!,
+                          alignment: Alignment.center,
+                          width: 20,
+                          height: 20,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.info,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x553B82F6),
+                                  blurRadius: 10,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
           ),
-          Expanded(
-            child: Center(
-              child: Text('Map view is available on your saved trips.'),
+          if (trips.isEmpty)
+            const Positioned(
+              top: AppSpacing.md,
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              child: HintText(
+                  'Saved route maps appear here with your start and drop points.'),
+            ),
+          Positioned(
+            right: AppSpacing.md,
+            bottom: AppSpacing.md,
+            child: FilledButton.icon(
+              onPressed: _locating ? null : _useMyLocation,
+              icon: _locating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.my_location, size: 18),
+              label: const Text('Use my current location'),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  static List<LatLng> _toLatLng(List<List<double>> coords) =>
+      coords.map((p) => LatLng(p[1], p[0])).toList();
+
+  Future<void> _useMyLocation() async {
+    final explainer = PermissionExplainer(
+      icon: Icons.gps_fixed,
+      title: 'Use your current location',
+      reasons: const [
+        'Show exactly where you are on the map.',
+        'Find routes and places near you.',
+        'Location is only used while you are on the map screen.',
+      ],
+      permissionLabel: 'Allow location',
+      onRequest: () => Navigator.of(context).pop(),
+    );
+    await explainer.showModal(context);
+    if (!mounted) return;
+
+    setState(() => _locating = true);
+    final place = await ref.read(geocodingRepositoryProvider).deviceLocation();
+    if (!mounted) return;
+    setState(() => _locating = false);
+
+    if (place == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Location is unavailable. Turn on GPS/location and try again, or open a saved trip for its route.'),
+        ),
       );
-    });
+      return;
+    }
+
+    final pt = LatLng(place.lat, place.lng);
+    setState(() => _currentLocation = pt);
+    _mapController.move(pt, 14);
+  }
+}
+
+class _TripRouteCard extends StatelessWidget {
+  const _TripRouteCard({required this.trip, required this.color});
+
+  final TripSummary trip;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 230,
+      child: Card(
+        margin: const EdgeInsets.only(right: AppSpacing.md),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(color: color.withValues(alpha: 0.6), width: 2),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          onTap: () => context.push(AppRoutes.tripDetailOf(trip.id)),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    '${trip.originLabel} → ${trip.destinationLabel}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    if (trip.bestDurationMin != null) ...[
+                      const Icon(Icons.schedule,
+                          size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          formatDuration(trip.bestDurationMin!),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                    if (trip.bestDistanceKm != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        '${trip.bestDistanceKm!.toStringAsFixed(0)} km',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (trip.bestRouteCost != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        formatCurrency(trip.bestRouteCost!),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

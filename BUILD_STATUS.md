@@ -136,6 +136,59 @@ navigation. Baseline + results all green (analyze clean, Flutter 63/63, Deno
 - **Not verified / release blockers**: iOS `DEVELOPMENT_TEAM` still unset
   (Apple signing required); no physical-device Live Trip test yet.
 
+## Emulator validation fixes (2026-08-14)
+
+Findings from on-device validation (emulator-5554, Android 17, running the
+`8fa1327` build with correct `--dart-define`s):
+
+- **Route calculation "network issue" (fixed)**: `/trip-calculate` took
+  12–14.5 s (Dio `receiveTimeout` is 15 s), so any variance pushed the call
+  past the timeout and surfaced as `NETWORK_UNAVAILABLE`. Root cause: the
+  `USE_LIVE_TOLL_DATA=true` / `USE_LIVE_FUEL_PRICES=true` secrets routed costs
+  through `SupabaseTollProvider`, which ran an unindexed bounding-box query on
+  `public.toll_plazas` per route segment × up to 6 route alternatives (~10 s
+  total). Both flags were set back to `false` (honest, clearly "estimated"
+  fallbacks) and the function was redeployed — calc now returns 2 real
+  Valhalla routes in ~2 s. The toll_plazas query needs a spatial/btree index
+  before re-enabling `USE_LIVE_TOLL_DATA`.
+- **Search region bias (fixed)**: the Nominatim forward query had no country
+  restriction, so generic queries like "temple" resolved to US places. The
+  geocode provider now sends `countrycodes=in` + `accept-language=en,hi,kn`,
+  and falls back to the place term after "near" when a proximity-phrased query
+  returns nothing ("college near Bengaluru" → Bengaluru colleges). Nominatim
+  data quality still does not match Google Maps; that is expected and
+  documented.
+- **"Use my location" on emulator**: no code defect — this Android 17 emulator
+  image does not deliver GPS fixes via `adb emu geo fix`; use Android Studio
+  Extended Controls → Location instead. Requires a real device to validate
+  GPS properly.
+
+Verification after fixes: `deno check` clean, `deno test` 50/50
+(`--allow-env --allow-net`). No Flutter code changed, so the running app needs
+no rebuild to pick these up.
+
+## Saved-trip route maps (2026-08-14)
+
+The Home → Map tab was a static placeholder ("Map view is available on your
+saved trips"). It now renders a real interactive map:
+
+- `/trip` GET (list) now returns `origin_lat/lng`, `destination_lat/lng` and
+  the best route's GeoJSON `geometry` (previously only labels + cost summary,
+  so no map could be drawn).
+- `TripSummary` gained those fields + a `bestRouteCoordinates` getter that
+  parses the GeoJSON LineString the same way `RouteOption` does.
+- Map tab (`home_screen.dart`): FlutterMap with OSM tiles, one colored route
+  polyline + start (trip_origin) and drop (location_on) markers per saved
+  trip, auto-fit bounds, and a horizontal row of tappable trip cards
+  (origin → destination, duration, distance, est. cost) opening the trip
+  detail.
+- Trip detail (`trip_detail_screen.dart`): added a route-map card with the
+  route line, start/drop markers and an endpoint label chip.
+
+Turn-by-turn instructions are intentionally not shown here: saved trips don't
+persist maneuver steps (only geometry + metrics), and the app never fabricates
+instructions — turn-by-turn remains a live-navigation feature.
+
 ## Realistic next steps for "go live"
 
 1. ✅ Rotate the Supabase service-role key before publishing — **DONE 2026-08-14**:
@@ -152,3 +205,21 @@ navigation. Baseline + results all green (analyze clean, Flutter 63/63, Deno
 5. Capture store screenshots and fill Play/App Store metadata (checklist:
    `docs/STORE_COMPLIANCE.md`).
 6. Test the full Live Trip flow on a physical device.
+---
+
+## Open-Source Parity Pass (2026-08-15)
+
+Checkpoint `8fa1327` preserved; this pass adds the open-source search/tile
+upgrades and verifies every screen flow. All checks green.
+
+| Item | Status |
+|---|---|
+| **Photon geocoding (worldwide, no bias)**: `PhotonGeocodingProvider` in `_shared/providers/geocodingProvider.ts` is the default live adapter (`GEOCODING_PROVIDER_KEY` set); Nominatim (India-biased) stays available via `GEOCODING_BACKEND=nominatim`; "near" phrasing handled (`cafes near me` → POI search, `cafes near MG Road` → searches the place) | Done, deployed, live-verified |
+| **Overpass POI search**: `poiProvider.ts` (category matcher, pure query builder/parser), `/poi-search` edge function (`verify_jwt=false`), 4-mirror failover, 30-min TTL cache, 90s failure cooldown | Done, deployed, live-verified (5/5 reliable) |
+| **POI wired into UI**: LocationPicker merges Overpass POIs for category queries near the map pin; global search `/search` surfaces Photon + Overpass results as `kind: "nearby"` | Done, on-device verified ("cafes near me" → real cafes) |
+| **Server tests**: `geocodingProvider_test.ts` + `poiProvider_test.ts` (photon label/map/near-phrase, category match, query build, response parse, selection, mock) | Done — deno 69 tests pass |
+| **Tiles**: `MapTileConfig` gained optional styled provider (`MAP_TILE_STYLE_URL_TEMPLATE`/`MAP_TILE_STYLE_ATTRIBUTION`); new `Route2GoTileLayer` renders styled first, auto-falls back to OSM on tile error; all 5 map screens use it | Done, analyze/tests green |
+| **Honesty pass**: route comparison + live-trip label disclaimers ("no live traffic data", "Est. arrival"); confirmed no traffic/real-time/guarantee claims; ratings show "No rating yet"; offline packages honest "Coming soon." | Done |
+| **On-device verification**: fresh APK (correct dart-defines) installed on emulator-5554; verified Home, Map tab (saved routes + locate + permission explainer), global search (worldwide results), LocationPicker (worldwide + POI merge), honest error states | Done |
+| Docs: `docs/API_PROVIDER_MATRIX.md`, `docs/DATA_SOURCES.md` new; `GEOCODING_SETUP.md` + `TILE_PROVIDER_SETUP.md` updated | Done |
+| Verification: `flutter analyze` clean, `flutter test` 63/63, `flutter build apk` ✓, `flutter build web` ✓, `deno check` clean, `deno test` 69/69 | Done |

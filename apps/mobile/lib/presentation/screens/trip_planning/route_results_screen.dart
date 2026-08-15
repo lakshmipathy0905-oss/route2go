@@ -256,11 +256,7 @@ class _RouteMapCardState extends ConsumerState<_RouteMapCard> {
                 ),
               ),
               children: [
-                TileLayer(
-                  urlTemplate: tileConfig.urlTemplate,
-                  tileProvider: tileConfig.buildTileProvider(),
-                  userAgentPackageName: tileConfig.userAgentPackageName,
-                ),
+                const Route2GoTileLayer(),
                 PolylineLayer(
                   polylines: [
                     for (final r in routes)
@@ -301,7 +297,9 @@ class _RouteMapCardState extends ConsumerState<_RouteMapCard> {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Text(
-              tileConfig.attribution,
+              tileConfig.styledUrlTemplate != null
+                  ? tileConfig.styledAttribution
+                  : tileConfig.attribution,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -390,7 +388,7 @@ class _ComparisonCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             const HintText(
-              'Cost/time deltas shown relative to the recommended route, which is highlighted.',
+              'Cost/time deltas shown relative to the recommended route, which is highlighted. Times and ETAs are estimates based on normal speeds — Route2Go has no live traffic data.',
             ),
             const SizedBox(height: AppSpacing.md),
             Wrap(

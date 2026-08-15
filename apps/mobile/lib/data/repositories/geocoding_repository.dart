@@ -37,6 +37,15 @@ class GeocodingRepository {
   Future<GeoPlace?> reverseGeocode(double lat, double lng) =>
       _provider.reverseGeocode(lat, lng);
 
+  /// Category POI search around a point (worldwide OSM via Overpass).
+  Future<List<GeoPlace>> searchNear(
+    String query, {
+    required double lat,
+    required double lng,
+    double radiusKm = 10,
+  }) =>
+      _provider.searchNear(query, lat: lat, lng: lng, radiusKm: radiusKm);
+
   /// Uses the device's GPS to determine the current location. Returns null
   /// when permission is denied or the service is off — callers must fall
   /// back to manual entry (spec 2.2 edge case) rather than failing hard.
