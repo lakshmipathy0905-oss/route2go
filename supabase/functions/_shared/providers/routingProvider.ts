@@ -63,6 +63,16 @@ export interface RoutingProvider {
     waypoints?: RoutePoint[];
     roundTrip: boolean;
   }): Promise<RouteAlternative[]>;
+
+  /** Returns exactly ONE route (the provider's primary/recommended). Used by
+   * /route-nav so live reroutes never pay for alternatives or a toll-free
+   * profile they discard. Returns null when no drivable route exists. */
+  getSingleRoute(params: {
+    origin: RoutePoint;
+    destination: RoutePoint;
+    waypoints?: RoutePoint[];
+    roundTrip: boolean;
+  }): Promise<RouteAlternative | null>;
 }
 
 /**
@@ -78,7 +88,11 @@ class MockRoutingProvider implements RoutingProvider {
     waypoints?: RoutePoint[];
     roundTrip: boolean;
   }): Promise<RouteAlternative[]> {
-    const path = [params.origin, ...(params.waypoints ?? []), params.destination];
+    const path = [
+      params.origin,
+      ...(params.waypoints ?? []),
+      params.destination,
+    ];
     let straightLineKm = 0;
     for (let i = 1; i < path.length; i++) {
       straightLineKm += haversineKm(path[i - 1], path[i]);
@@ -90,9 +104,10 @@ class MockRoutingProvider implements RoutingProvider {
     const makeAlt = (
       routeType: RouteAlternative["routeType"],
       distanceFactor: number,
-      speedKmph: number
+      speedKmph: number,
     ): RouteAlternative => {
-      const distanceKm = Math.round(baseDistance * distanceFactor * multiplier * 10) / 10;
+      const distanceKm =
+        Math.round(baseDistance * distanceFactor * multiplier * 10) / 10;
       const durationMin = Math.round((distanceKm / speedKmph) * 60);
       return {
         routeType,
@@ -125,6 +140,20 @@ class MockRoutingProvider implements RoutingProvider {
       makeAlt("recommended", 1.02, 60),
     ];
   }
+
+  async getSingleRoute(params: {
+    origin: RoutePoint;
+    destination: RoutePoint;
+    waypoints?: RoutePoint[];
+    roundTrip: boolean;
+  }): Promise<RouteAlternative | null> {
+    const alternatives = await this.getRouteAlternatives(params);
+    // Keep dev consistent with production semantics: live navigation follows
+    // the recommended (primary) route, so the mock returns that too.
+    return alternatives.find((a) => a.routeType === "recommended") ??
+      alternatives[0] ??
+      null;
+  }
 }
 
 /**
@@ -140,88 +169,111 @@ class MockRoutingProvider implements RoutingProvider {
 class ValhallaRoutingProvider implements RoutingProvider {
   constructor(private baseUrl: string, private apiKey: string) {}
 
+  /** One POST to `/route` with a bounded timeout and at most one retry on
+   * transient failures (network errors and 5xx only — never on 4xx input
+   * errors). Returns `{ trip: undefined }` for a legitimate no-route answer. */
+  private async postRoute(
+    params: {
+      origin: RoutePoint;
+      destination: RoutePoint;
+      waypoints?: RoutePoint[];
+      roundTrip: boolean;
+    },
+    useTolls: boolean,
+    alternates: number,
+  ): Promise<RawValhallaRoute> {
+    const base = this.baseUrl.replace(/\/+$/, "");
+    const attempts = useTolls ? 2 : 1; // main retries once; toll-free stays fast
+    const body = JSON.stringify(
+      buildValhallaRequest({ ...params, useTolls, alternates }),
+    );
+
+    let res: Response | null = null;
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 500));
+      try {
+        res = await fetch(`${base}/route`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+          },
+          body,
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch (err) {
+        // Timeout (AbortError) or a network failure — retryable.
+        lastError = err;
+        continue;
+      }
+      // 5xx is transient; 4xx (including Valhalla no-route codes) must not
+      // be retried — re-issuing a bad request only wastes the server.
+      if (res.status >= 500 && res.status < 600 && attempt < attempts - 1) {
+        lastError = new Error(`Valhalla returned ${res.status}`);
+        continue;
+      }
+      break;
+    }
+    if (!res) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Valhalla routing request failed");
+    }
+    if (!res.ok) {
+      const bodyJson = await res.json().catch(() => null);
+      if (isNoRouteError(bodyJson)) {
+        // Legitimately no drivable route -> caller maps to 404 NO_ROUTE_FOUND.
+        return { trip: undefined };
+      }
+      throw new Error(`Valhalla routing provider responded with ${res.status}`);
+    }
+    const json = (await res.json()) as RawValhallaRoute;
+    if (!json || typeof json !== "object" || !json.trip) {
+      throw new Error("Valhalla returned an unexpected response shape.");
+    }
+    return json;
+  }
+
   async getRouteAlternatives(params: {
     origin: RoutePoint;
     destination: RoutePoint;
     waypoints?: RoutePoint[];
     roundTrip: boolean;
   }): Promise<RouteAlternative[]> {
-    const base = this.baseUrl.replace(/\/+$/, "");
-
-    // Conservative HTTP policy: a short per-attempt timeout and at most one
-    // retry on transient failures (network errors and 5xx only — never on 4xx
-    // input errors). We deliberately do not hammer the server: two attempts
-    // with a small gap, then a clear failure that surfaces as 502.
-    const postRoute = async (
-      useTolls: boolean,
-      alternates: number,
-    ): Promise<RawValhallaRoute> => {
-      const attempts = useTolls ? 2 : 1; // main retries once; toll-free stays fast
-      const body = JSON.stringify(
-        buildValhallaRequest({ ...params, useTolls, alternates }),
-      );
-
-      let res: Response | null = null;
-      let lastError: unknown = null;
-      for (let attempt = 0; attempt < attempts; attempt++) {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, 500));
-        try {
-          res = await fetch(`${base}/route`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
-            },
-            body,
-            signal: AbortSignal.timeout(10_000),
-          });
-        } catch (err) {
-          // Timeout (AbortError) or a network failure — retryable.
-          lastError = err;
-          continue;
-        }
-        // 5xx is transient; 4xx (including Valhalla no-route codes) must not
-        // be retried — re-issuing a bad request only wastes the server.
-        if (res.status >= 500 && res.status < 600 && attempt < attempts - 1) {
-          lastError = new Error(`Valhalla returned ${res.status}`);
-          continue;
-        }
-        break;
-      }
-      if (!res) {
-        throw lastError instanceof Error
-          ? lastError
-          : new Error("Valhalla routing request failed");
-      }
-      if (!res.ok) {
-        const bodyJson = await res.json().catch(() => null);
-        if (isNoRouteError(bodyJson)) {
-          // Legitimately no drivable route -> caller maps to 404 NO_ROUTE_FOUND.
-          return { trip: undefined };
-        }
-        throw new Error(`Valhalla routing provider responded with ${res.status}`);
-      }
-      const json = (await res.json()) as RawValhallaRoute;
-      if (!json || typeof json !== "object" || !json.trip) {
-        throw new Error("Valhalla returned an unexpected response shape.");
-      }
-      return json;
-    };
-
     // Tolls-allowed profile: primary + up to 3 alternatives. A failure here is
     // fatal (the caller turns it into 502 ROUTE_PROVIDER_UNAVAILABLE).
-    const main = await postRoute(true, 3);
+    const main = await this.postRoute(params, true, 3);
 
     // Toll-avoiding profile for a genuine "no_toll" option. A failure here must
     // never kill the whole trip calculation — we just omit that option.
     let noToll: RawValhallaRoute | null = null;
     try {
-      noToll = await postRoute(false, 1);
+      noToll = await this.postRoute(params, false, 1);
     } catch (err) {
-      console.error("valhalla no-toll request failed; skipping no_toll option", err);
+      console.error(
+        "valhalla no-toll request failed; skipping no_toll option",
+        err,
+      );
     }
 
     return labelValhallaRoutes(collectValhallaRoutes(main, noToll));
+  }
+
+  async getSingleRoute(params: {
+    origin: RoutePoint;
+    destination: RoutePoint;
+    waypoints?: RoutePoint[];
+    roundTrip: boolean;
+  }): Promise<RouteAlternative | null> {
+    // Navigation needs exactly one route: a single tolls-allowed request with
+    // no alternatives. This keeps live reroutes fast and halves Valhalla load
+    // versus the full alternatives request used by trip-calculate.
+    const main = await this.postRoute(params, true, 0);
+    const primary = collectValhallaRoutes(main).find((r) => r.isPrimary);
+    if (!primary) return null;
+    const labeled = labelValhallaRoutes([primary]);
+    return labeled[0] ?? null;
   }
 }
 
@@ -239,9 +291,9 @@ function haversineKm(a: RoutePoint, b: RoutePoint): number {
   const R = 6371;
   const dLat = deg2rad(b.lat - a.lat);
   const dLng = deg2rad(b.lng - a.lng);
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(deg2rad(a.lat)) * Math.cos(deg2rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos(deg2rad(a.lat)) * Math.cos(deg2rad(b.lat)) *
+      Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 

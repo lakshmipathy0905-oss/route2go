@@ -12,8 +12,12 @@
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { AuthError, authRequest } from "../_shared/auth.ts";
 import { getGeocodingProvider } from "../_shared/providers/geocodingProvider.ts";
-import { getPoiProvider } from "../_shared/providers/poiProvider.ts";
-import { checkRateLimit, clientKey } from "../_shared/rateLimit.ts";
+import {
+  getPoiProvider,
+  type PoiResult,
+} from "../_shared/providers/poiProvider.ts";
+import { rateLimitGuard } from "../_shared/rateLimit.ts";
+import { sanitizeSearchPattern } from "../_shared/searchSanitize.ts";
 
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
@@ -40,12 +44,8 @@ Deno.serve(async (req: Request) => {
 
   // This endpoint also proxies the public geocoder/POI providers: bound how
   // often one client key can hit them through us (per-isolate, IP-keyed).
-  const rateLimit = checkRateLimit(clientKey(req), 120, 60_000);
-  if (!rateLimit.allowed) {
-    return jsonError(429, "RATE_LIMITED", "Too many requests. Try again shortly.", reqId, true, {
-      "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)),
-    });
-  }
+  const tooMany = rateLimitGuard(req, 120, 60_000, reqId);
+  if (tooMany) return tooMany;
 
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").trim();
@@ -54,7 +54,10 @@ Deno.serve(async (req: Request) => {
   if (!q || q.length < 2) return jsonOk([], reqId);
 
   const supabase = ctx.supabase;
-  const pattern = `%${q}%`;
+  // Sanitize the search term before it enters PostgREST filters (see
+  // sanitizeSearchPattern): `%`/`*` would widen the match, and `,` `(` `)` `.`
+  // quotes/backslashes would be parsed as extra filter syntax.
+  const pattern = sanitizeSearchPattern(q);
   const results: Array<
     {
       kind: string;
@@ -128,12 +131,24 @@ Deno.serve(async (req: Request) => {
   // Worldwwide address/place results from the upgraded provider (Photon by
   // default) and, when a reference point is supplied, POI category results
   // from Overpass. Best-effort: a provider failure never drops the DB hits.
+  // Geocoding and the POI search are independent, so they run concurrently —
+  // this halves worst-case search latency on queries that hit both.
   let nearbyDegraded = false;
   try {
     const latRaw = url.searchParams.get("lat");
     const lngRaw = url.searchParams.get("lng");
+    const lat = latRaw !== null ? Number(latRaw) : NaN;
+    const lng = lngRaw !== null ? Number(lngRaw) : NaN;
+    const refValid = isFinite(lat) && isFinite(lng);
 
-    const geocoded = await getGeocodingProvider().forward(q);
+    const provider = getPoiProvider();
+    const [geocoded, pois] = await Promise.all([
+      getGeocodingProvider().forward(q),
+      refValid
+        ? provider.searchNear({ query: q, lat, lng, radiusKm: 10 })
+        : Promise.resolve([] as PoiResult[]),
+    ]);
+
     for (const g of geocoded.slice(0, limit)) {
       results.push({
         kind: "nearby",
@@ -145,28 +160,17 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    if (latRaw !== null && lngRaw !== null) {
-      const lat = Number(latRaw);
-      const lng = Number(lngRaw);
-      if (isFinite(lat) && isFinite(lng)) {
-        const provider = getPoiProvider();
-        const pois = await provider.searchNear({
-          query: q,
-          lat,
-          lng,
-          radiusKm: 10,
+    if (refValid) {
+      nearbyDegraded = provider.isDegraded();
+      for (const p of pois.slice(0, limit)) {
+        results.push({
+          kind: "nearby",
+          id: `poi:${p.lat}:${p.lng}`,
+          title: p.name,
+          subtitle: p.category.replaceAll("_", " "),
+          lat: p.lat,
+          lng: p.lng,
         });
-        nearbyDegraded = provider.isDegraded();
-        for (const p of pois.slice(0, limit)) {
-          results.push({
-            kind: "nearby",
-            id: `poi:${p.lat}:${p.lng}`,
-            title: p.name,
-            subtitle: p.category.replaceAll("_", " "),
-            lat: p.lat,
-            lng: p.lng,
-          });
-        }
       }
     }
   } catch {

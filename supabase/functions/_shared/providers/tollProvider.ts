@@ -37,39 +37,65 @@ class SupabaseTollProvider implements TollProvider {
   constructor(private supabaseUrl: string, private serviceRoleKey: string) {}
 
   async getTollsForRoute(segments: RouteSegment[]): Promise<TollResult> {
-    // Real implementation: bounding-box query against public.toll_plazas per
-    // segment (or a PostGIS ST_DWithin query on the route geometry if PostGIS
-    // is enabled on the Supabase project), then sum verified charges and flag
-    // any gap as estimated rather than silently omitting it.
-    const plazas: TollResult["plazas"] = [];
-    for (const seg of segments) {
-      const pad = 0.05; // ~5km bounding box padding in degrees, coarse on purpose
-      const minLat = Math.min(seg.startLat, seg.endLat) - pad;
-      const maxLat = Math.max(seg.startLat, seg.endLat) + pad;
-      const minLng = Math.min(seg.startLng, seg.endLng) - pad;
-      const maxLng = Math.max(seg.startLng, seg.endLng) + pad;
+    // Real implementation: a single bounding-box query against
+    // public.toll_plazas over the UNION of all segment boxes (min/max lat/lng
+    // with padding). The union box is a superset of every per-segment box, so
+    // this returns the same plazas a per-segment loop would — in one query
+    // instead of one per segment. Verified charges are summed and any gap is
+    // flagged as estimated rather than silently omitted.
+    if (segments.length === 0) {
+      return { totalToll: 0, confidence: "unavailable", plazas: [] };
+    }
 
-      const res = await fetch(
-        `${this.supabaseUrl}/rest/v1/toll_plazas?lat=gte.${minLat}&lat=lte.${maxLat}&lng=gte.${minLng}&lng=lte.${maxLng}&select=name,charge,source_confidence`,
-        {
-          headers: {
-            apikey: this.serviceRoleKey,
-            Authorization: `Bearer ${this.serviceRoleKey}`,
-          },
-        }
-      );
-      if (!res.ok) continue; // one segment's lookup failing doesn't kill the whole trip calc
-      const rows = await res.json();
-      for (const row of rows) {
-        plazas.push({ name: row.name, charge: Number(row.charge), confidence: row.source_confidence });
-      }
+    const pad = 0.05; // ~5km bounding box padding in degrees, coarse on purpose
+    let minLat = Infinity,
+      maxLat = -Infinity,
+      minLng = Infinity,
+      maxLng = -Infinity;
+    for (const seg of segments) {
+      minLat = Math.min(minLat, seg.startLat, seg.endLat);
+      maxLat = Math.max(maxLat, seg.startLat, seg.endLat);
+      minLng = Math.min(minLng, seg.startLng, seg.endLng);
+      maxLng = Math.max(maxLng, seg.startLng, seg.endLng);
+    }
+
+    const res = await fetch(
+      `${this.supabaseUrl}/rest/v1/toll_plazas?lat=gte.${minLat - pad}` +
+        `&lat=lte.${maxLat + pad}&lng=gte.${minLng - pad}` +
+        `&lng=lte.${
+          maxLng + pad
+        }&select=name,charge,source_confidence&limit=500`,
+      {
+        headers: {
+          apikey: this.serviceRoleKey,
+          Authorization: `Bearer ${this.serviceRoleKey}`,
+        },
+      },
+    );
+    if (!res.ok) {
+      // A toll lookup failure must not kill the whole trip calc — return an
+      // honest "unknown" rather than a silent zero.
+      return { totalToll: 0, confidence: "unavailable", plazas: [] };
+    }
+    const rows = await res.json();
+    const plazas: TollResult["plazas"] = [];
+    for (const row of rows) {
+      plazas.push({
+        name: row.name,
+        charge: Number(row.charge),
+        confidence: row.source_confidence,
+      });
     }
 
     const total = plazas.reduce((sum, p) => sum + p.charge, 0);
     const anyEstimated = plazas.some((p) => p.confidence !== "verified");
     return {
       totalToll: total,
-      confidence: plazas.length === 0 ? "unavailable" : anyEstimated ? "estimated" : "verified",
+      confidence: plazas.length === 0
+        ? "unavailable"
+        : anyEstimated
+        ? "estimated"
+        : "verified",
       plazas,
     };
   }

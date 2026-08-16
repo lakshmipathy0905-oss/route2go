@@ -1,11 +1,16 @@
 // Lightweight in-memory fixed-window rate limiter for Route2Go edge functions.
 //
-// Guards the public (no-JWT, verify_jwt=false) endpoints — /poi-search and
-// /geocode — so they can't be used as an unmetered proxy to hammer the public
-// open-data servers (Overpass, Photon/Nominatim): if abused, the public
-// mirrors ban *our* edge-function IP, not the caller's. This is a per-isolate
-// in-memory guard (bounded memory, no persistence) — a reasonable defence in
-// depth, not a replacement for platform-level rate limiting in production.
+// Guards the public (no-JWT, verify_jwt=false) endpoints that proxy upstream
+// work or heavy DB reads — /search, /poi-search, /geocode, /route-nav,
+// /trip-calculate, /places-near-route, /stays-near-route,
+// /itinerary-generate — so they can't be used as an unmetered proxy to hammer
+// the public open-data servers (Overpass, Photon/Nominatim, Valhalla) or
+// saturate our DB budget: if abused, the public mirrors ban *our* edge-function
+// IP, not the caller's. This is a per-isolate in-memory guard (bounded memory,
+// no persistence) — a reasonable defence in depth, not a replacement for
+// platform-level rate limiting in production.
+
+import { jsonError } from "./http.ts";
 
 interface Bucket {
   windowStart: number;
@@ -20,13 +25,22 @@ export interface RateLimitResult {
   retryAfterMs: number;
 }
 
+/** Identity for rate limiting. Uses the LAST hop of `x-forwarded-for` because
+ * the leftmost entries are attacker-controlled (a caller can set arbitrary
+ * leading values); the final hop is appended by the gateway/proxy from the
+ * real peer address and is the only trustworthy one. */
 export function clientKey(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
   if (fwd) {
-    const first = fwd.split(",")[0].trim();
-    if (first) return first;
+    const hops = fwd.split(",").map((h) => h.trim()).filter((h) =>
+      h.length > 0
+    );
+    const last = hops[hops.length - 1];
+    if (last) return last;
   }
-  return req.headers.get("x-real-ip") ?? "unknown";
+  return req.headers.get("cf-connecting-ip") ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
 }
 
 export function checkRateLimit(
@@ -52,4 +66,25 @@ export function checkRateLimit(
   }
   bucket.count += 1;
   return { allowed: true, retryAfterMs: 0 };
+}
+
+/** Convenience guard for handlers: returns a 429 Response when the caller
+ * exceeds the limit, or null to let the handler proceed. Keeps the
+ * retry-after header and error shape identical across endpoints. */
+export function rateLimitGuard(
+  req: Request,
+  maxRequests: number,
+  windowMs: number,
+  reqId: string,
+): Response | null {
+  const rl = checkRateLimit(clientKey(req), maxRequests, windowMs);
+  if (rl.allowed) return null;
+  return jsonError(
+    429,
+    "RATE_LIMITED",
+    "Too many requests. Try again shortly.",
+    reqId,
+    true,
+    { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) },
+  );
 }

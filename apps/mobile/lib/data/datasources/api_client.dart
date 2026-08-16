@@ -11,11 +11,21 @@ import '../../core/errors/app_exception.dart';
 ///    are explicitly allowed in guest mode (route calculation only)
 ///  - converts network/HTTP failures into typed AppException so the UI
 ///    layer never has to parse raw DioException/stack traces
+///
+/// Idempotent GETs are protected against accidental duplicate requests: an
+/// identical in-flight request shares one HTTP round-trip, and a successful
+/// result is memoized for a short TTL so a re-fetch right after a response
+/// (e.g. two widgets mounting together) reuses it instead of re-querying.
+/// Mutations are never cached or deduped.
 class ApiClient {
   ApiClient(this._dio, this._authRepository);
 
   final Dio _dio;
   final AuthRepository _authRepository;
+
+  static const _memoTtl = Duration(seconds: 2);
+  final Map<String, Future<Map<String, dynamic>>> _inFlight = {};
+  final Map<String, _GetMemo> _memo = {};
 
   Future<Map<String, dynamic>> post(
     String path, {
@@ -40,16 +50,31 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     bool allowGuest = false,
   }) async {
+    final key = _getKey(path, queryParameters);
+
+    // Share one HTTP round-trip for identical concurrent GETs.
+    final existing = _inFlight[key];
+    if (existing != null) return existing;
+
+    // Reuse a very recent successful answer for the same read.
+    final memo = _memo[key];
+    if (memo != null &&
+        DateTime.now().difference(memo.at) < _memoTtl &&
+        memo.allowGuest == allowGuest) {
+      return memo.value;
+    }
+
+    final future = _get(path, queryParameters, allowGuest).whenComplete(() {
+      _inFlight.remove(key);
+    });
+    _inFlight[key] = future;
     try {
-      final token = await _resolveToken(allowGuest: allowGuest);
-      final response = await _dio.get(
-        path,
-        queryParameters: queryParameters,
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      throw _mapDioException(e);
+      final result = await future;
+      _memo[key] =
+          _GetMemo(value: result, at: DateTime.now(), allowGuest: allowGuest);
+      return result;
+    } finally {
+      // in-flight entry was removed by whenComplete above.
     }
   }
 
@@ -87,6 +112,34 @@ class ApiClient {
     } on DioException catch (e) {
       throw _mapDioException(e);
     }
+  }
+
+  Future<Map<String, dynamic>> _get(
+    String path,
+    Map<String, dynamic>? queryParameters,
+    bool allowGuest,
+  ) async {
+    try {
+      final token = await _resolveToken(allowGuest: allowGuest);
+      final response = await _dio.get(
+        path,
+        queryParameters: queryParameters,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _mapDioException(e);
+    }
+  }
+
+  /// Stable cache key: query entries sorted so ordering differences between
+  /// callers never defeat the dedup/memo.
+  String _getKey(String path, Map<String, dynamic>? queryParameters) {
+    if (queryParameters == null || queryParameters.isEmpty) return path;
+    final entries = queryParameters.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final q = entries.map((e) => '${e.key}=${e.value}').join('&');
+    return '$path?$q';
   }
 
   Future<String> _resolveToken({required bool allowGuest}) async {
@@ -146,3 +199,15 @@ final dioProvider = Provider<Dio>((ref) {
 final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(ref.watch(dioProvider), ref.watch(authRepositoryProvider));
 });
+
+class _GetMemo {
+  const _GetMemo({
+    required this.value,
+    required this.at,
+    required this.allowGuest,
+  });
+
+  final Map<String, dynamic> value;
+  final DateTime at;
+  final bool allowGuest;
+}

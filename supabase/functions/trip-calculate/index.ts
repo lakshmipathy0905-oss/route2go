@@ -17,12 +17,22 @@
 //   ROUTING_PROVIDER_BASE_URL
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { authRequest, requireUser, resolveServiceRoleKey, AuthError } from "../_shared/auth.ts";
+import {
+  AuthError,
+  authRequest,
+  requireUser,
+  resolveServiceRoleKey,
+} from "../_shared/auth.ts";
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
 import { getRoutingProvider } from "../_shared/providers/routingProvider.ts";
 import { getFuelPriceProvider } from "../_shared/providers/fuelPriceProvider.ts";
 import { getTollProvider } from "../_shared/providers/tollProvider.ts";
-import { computeFuelCost, round2, SAFETY_BUFFER_PCT } from "../_shared/fuelCostEngine.ts";
+import {
+  computeFuelCost,
+  round2,
+  SAFETY_BUFFER_PCT,
+} from "../_shared/fuelCostEngine.ts";
+import { rateLimitGuard } from "../_shared/rateLimit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = resolveServiceRoleKey();
@@ -49,8 +59,13 @@ interface CalculateRequest {
 // Reads the gating flags for cost paths. Falls back to the same statics the// /feature-flags endpoint publishes so behaviour is consistent even if the
 // table is unreachable (never fabricate a cost because a flag read failed).
 async function readPhaseFlags(supabase: any): Promise<Record<string, boolean>> {
-  const defaults: Record<string, boolean> = { phase2_ev: false, phase2_cng: false };
-  const { data, error } = await supabase.from("feature_flags").select("key, enabled");
+  const defaults: Record<string, boolean> = {
+    phase2_ev: false,
+    phase2_cng: false,
+  };
+  const { data, error } = await supabase.from("feature_flags").select(
+    "key, enabled",
+  );
   if (error || !data) return defaults;
   for (const row of data) {
     if (typeof row.enabled === "boolean") defaults[row.key] = row.enabled;
@@ -58,12 +73,61 @@ async function readPhaseFlags(supabase: any): Promise<Record<string, boolean>> {
   return defaults;
 }
 
+// Fuel price resolution: manual override always wins over provider data.
+// For EV/CNG the cost engine is gated behind phase2_ev / phase2_cng flags.
+// Never rejects: a provider failure degrades to "unavailable", never a crash.
+async function resolveFuelPrice(
+  body: CalculateRequest,
+): Promise<
+  { perUnit: number | null; source: string; freshness: string | null }
+> {
+  const fuelPriceProvider = getFuelPriceProvider();
+  let fuelPricePerUnit: number | null = body.vehicle.fuel_type === "ev"
+    ? (body.ev_price_per_kwh ?? null)
+    : (body.fuel_price_per_litre ?? null);
+  let fuelPriceSource: string = fuelPricePerUnit ? "manual" : "unavailable";
+  let fuelPriceFreshness: string | null = null;
+
+  if (!fuelPricePerUnit && body.vehicle.fuel_type !== "ev") {
+    try {
+      const priceInfo = await fuelPriceProvider.getPrice({
+        region: "IN", // region derivation from lat/lng is a follow-up refinement
+        fuelType: body.vehicle.fuel_type === "cng"
+          ? "cng"
+          : body.vehicle.fuel_type,
+      });
+      fuelPricePerUnit = priceInfo.price;
+      fuelPriceSource = "provider";
+      fuelPriceFreshness = priceInfo.lastUpdated;
+    } catch {
+      fuelPriceSource = "unavailable";
+    }
+  }
+  return {
+    perUnit: fuelPricePerUnit,
+    source: fuelPriceSource,
+    freshness: fuelPriceFreshness,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
 
   if (req.method !== "POST") {
-    return jsonError(405, "METHOD_NOT_ALLOWED", "Only POST is supported.", reqId, false);
+    return jsonError(
+      405,
+      "METHOD_NOT_ALLOWED",
+      "Only POST is supported.",
+      reqId,
+      false,
+    );
   }
+
+  // Trip calculation is the highest-cost operation (Valhalla + DB writes).
+  // A generous per-key cap still protects shared upstreams from a single
+  // abusive client.
+  const tooMany = rateLimitGuard(req, 60, 60_000, reqId);
+  if (tooMany) return tooMany;
 
   // 1. Verify Firebase token (never trust client-provided uid/email).
   //    Guest mode is allowed here (spec Section 5.2): route calculation works
@@ -86,7 +150,13 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    return jsonError(422, "INVALID_JSON", "Request body must be valid JSON.", reqId, false);
+    return jsonError(
+      422,
+      "INVALID_JSON",
+      "Request body must be valid JSON.",
+      reqId,
+      false,
+    );
   }
 
   const validationError = validateCalculateRequest(body);
@@ -95,55 +165,66 @@ Deno.serve(async (req: Request) => {
   }
 
   // Reject no-op routes early (spec: same origin/destination is blocked before calculation)
-  if (body.origin.lat === body.destination.lat && body.origin.lng === body.destination.lng) {
-    return jsonError(422, "SAME_ORIGIN_DESTINATION", "Origin and destination cannot be the same place.", reqId, false);
+  if (
+    body.origin.lat === body.destination.lat &&
+    body.origin.lng === body.destination.lng
+  ) {
+    return jsonError(
+      422,
+      "SAME_ORIGIN_DESTINATION",
+      "Origin and destination cannot be the same place.",
+      reqId,
+      false,
+    );
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   // 3. internalUserId was resolved (and provisioned if needed) in authRequest.
 
-  // 4. Call routing provider (abstracted; mock adapter used if no key configured)
+  // 4. Kick off the three independent slow paths in parallel: routing
+  //    (Valhalla), phase flags (DB) and fuel price (provider/DB). None of them
+  //    depends on the others, so running them concurrently cuts wall-clock
+  //    latency from their sum to the slowest.
   const routingProvider = getRoutingProvider();
+  const routingPromise = routingProvider.getRouteAlternatives({
+    origin: body.origin,
+    destination: body.destination,
+    roundTrip: body.trip_type === "round_trip",
+  });
+  const flagsPromise = readPhaseFlags(supabase);
+  const fuelPromise = resolveFuelPrice(body);
+
   let routeAlternatives;
   try {
-    routeAlternatives = await routingProvider.getRouteAlternatives({
-      origin: body.origin,
-      destination: body.destination,
-      roundTrip: body.trip_type === "round_trip",
-    });
+    routeAlternatives = await routingPromise;
   } catch (err) {
-    return jsonError(502, "ROUTE_PROVIDER_UNAVAILABLE", "Route data is temporarily unavailable. Please try again.", reqId, true);
+    return jsonError(
+      502,
+      "ROUTE_PROVIDER_UNAVAILABLE",
+      "Route data is temporarily unavailable. Please try again.",
+      reqId,
+      true,
+    );
   }
 
   if (!routeAlternatives || routeAlternatives.length === 0) {
-    return jsonError(404, "NO_ROUTE_FOUND", "No route available for this input. Check the locations or try a nearby major town.", reqId, false);
+    return jsonError(
+      404,
+      "NO_ROUTE_FOUND",
+      "No route available for this input. Check the locations or try a nearby major town.",
+      reqId,
+      false,
+    );
   }
 
-  // 5. Fuel price resolution: manual override always wins over provider data.
-  //    For EV/CNG the cost engine is gated behind phase2_ev / phase2_cng;
-  //    read the flags once so the gating uses live values, not stale statics.
-  const phaseFlags = await readPhaseFlags(supabase);
-  const fuelPriceProvider = getFuelPriceProvider();
-  let fuelPricePerUnit: number | null = body.vehicle.fuel_type === "ev"
-    ? (body.ev_price_per_kwh ?? null)
-    : (body.fuel_price_per_litre ?? null);
-  let fuelPriceSource: "manual" | "provider" | "unavailable" = fuelPricePerUnit ? "manual" : "unavailable";
-  let fuelPriceFreshness: string | null = null;
-
-  if (!fuelPricePerUnit && body.vehicle.fuel_type !== "ev") {
-    try {
-      const priceInfo = await fuelPriceProvider.getPrice({
-        region: "IN", // region derivation from lat/lng is a follow-up refinement
-        fuelType: body.vehicle.fuel_type === "cng" ? "cng" : body.vehicle.fuel_type,
-      });
-      fuelPricePerUnit = priceInfo.price;
-      fuelPriceSource = "provider";
-      fuelPriceFreshness = priceInfo.lastUpdated;
-    } catch {
-      fuelPriceSource = "unavailable";
-    }
-  }
+  // 5. Flags and fuel resolve in parallel with routing (already in flight).
+  const phaseFlags = await flagsPromise;
+  const {
+    perUnit: fuelPricePerUnit,
+    source: fuelPriceSource,
+    freshness: fuelPriceFreshness,
+  } = await fuelPromise;
 
   const tollProvider = getTollProvider();
 
@@ -162,7 +243,11 @@ Deno.serve(async (req: Request) => {
     try {
       tollResult = await tollProvider.getTollsForRoute(alt.segments);
     } catch {
-      tollResult = { totalToll: 0, confidence: "unavailable" as const, plazas: [] };
+      tollResult = {
+        totalToll: 0,
+        confidence: "unavailable" as const,
+        plazas: [],
+      };
     }
 
     const totalCost = round2((fuelResult.cost ?? 0) + tollResult.totalToll);
@@ -235,12 +320,22 @@ Deno.serve(async (req: Request) => {
       total_cost: r.total_cost,
       geometry: r.geometry,
       provider: r.provider,
-      freshness_note: r.toll_confidence === "estimated" ? "Toll costs are estimated for this corridor." : null,
+      freshness_note: r.toll_confidence === "estimated"
+        ? "Toll costs are estimated for this corridor."
+        : null,
     }));
 
-    const { error: routesErr } = await supabase.from("routes").insert(routeRows);
+    const { error: routesErr } = await supabase.from("routes").insert(
+      routeRows,
+    );
     if (routesErr) {
-      return jsonError(500, "DB_ERROR", "Could not save route options.", reqId, true);
+      return jsonError(
+        500,
+        "DB_ERROR",
+        "Could not save route options.",
+        reqId,
+        true,
+      );
     }
   }
 
@@ -250,7 +345,7 @@ Deno.serve(async (req: Request) => {
       routes: computedRoutes,
       budget_status: budgetStatus,
     },
-    reqId
+    reqId,
   );
 });
 
@@ -264,24 +359,26 @@ function computeBudgetStatus(params: {
   misc: number;
   budgetTotal: number;
 }) {
-  const totalEstimated = params.transport + params.accommodation + params.food + params.misc;
-  const usedPct = params.budgetTotal > 0 ? totalEstimated / params.budgetTotal : 1;
+  const totalEstimated = params.transport + params.accommodation + params.food +
+    params.misc;
+  const usedPct = params.budgetTotal > 0
+    ? totalEstimated / params.budgetTotal
+    : 1;
 
   let status: "GREEN" | "YELLOW" | "RED";
   if (usedPct < 0.8) status = "GREEN";
   else if (usedPct <= 1.0) status = "YELLOW";
   else status = "RED";
 
-  const suggestions =
-    status === "RED"
-      ? [
-          "Switch to a cheaper accommodation tier",
-          "Remove the lowest-priority attraction",
-          "Switch to the no-toll or cheaper route",
-          "Reduce the trip duration by a day",
-          "Choose a lower-cost food stop tier",
-        ]
-      : [];
+  const suggestions = status === "RED"
+    ? [
+      "Switch to a cheaper accommodation tier",
+      "Remove the lowest-priority attraction",
+      "Switch to the no-toll or cheaper route",
+      "Reduce the trip duration by a day",
+      "Choose a lower-cost food stop tier",
+    ]
+    : [];
 
   return {
     status,
@@ -294,16 +391,25 @@ function computeBudgetStatus(params: {
 }
 
 function validateCalculateRequest(body: CalculateRequest): string | null {
-  if (!body?.origin || typeof body.origin.lat !== "number" || typeof body.origin.lng !== "number") {
+  if (
+    !body?.origin || typeof body.origin.lat !== "number" ||
+    typeof body.origin.lng !== "number"
+  ) {
     return "origin.lat and origin.lng are required numbers.";
   }
-  if (!body?.destination || typeof body.destination.lat !== "number" || typeof body.destination.lng !== "number") {
+  if (
+    !body?.destination || typeof body.destination.lat !== "number" ||
+    typeof body.destination.lng !== "number"
+  ) {
     return "destination.lat and destination.lng are required numbers.";
   }
   if (!["one_way", "round_trip"].includes(body.trip_type)) {
     return "trip_type must be 'one_way' or 'round_trip'.";
   }
-  if (!body.vehicle || !["petrol", "diesel", "ev", "cng"].includes(body.vehicle.fuel_type)) {
+  if (
+    !body.vehicle ||
+    !["petrol", "diesel", "ev", "cng"].includes(body.vehicle.fuel_type)
+  ) {
     return "vehicle.fuel_type must be one of petrol, diesel, ev, cng.";
   }
   if (
@@ -321,8 +427,12 @@ function validateCalculateRequest(body: CalculateRequest): string | null {
   if (body.ev_price_per_kwh !== undefined && body.ev_price_per_kwh < 0) {
     return "ev_price_per_kwh cannot be negative.";
   }
-  const coordInRange = (lat: number, lng: number) => lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-  if (!coordInRange(body.origin.lat, body.origin.lng) || !coordInRange(body.destination.lat, body.destination.lng)) {
+  const coordInRange = (lat: number, lng: number) =>
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  if (
+    !coordInRange(body.origin.lat, body.origin.lng) ||
+    !coordInRange(body.destination.lat, body.destination.lng)
+  ) {
     return "Coordinates are out of valid range.";
   }
   return null;

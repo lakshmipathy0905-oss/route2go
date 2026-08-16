@@ -19,6 +19,7 @@ class PlacesNearRoute {
 
 class PlacesNotifier extends AsyncNotifier<PlacesNearRoute> {
   String _currentQueryKey = '';
+  List<PlaceCategory>? _cachedCategories;
 
   @override
   Future<PlacesNearRoute> build() async {
@@ -47,7 +48,16 @@ class PlacesNotifier extends AsyncNotifier<PlacesNearRoute> {
     state = const AsyncLoading();
     final repo = ref.read(placesRepositoryProvider);
     state = await AsyncValue.guard(() async {
-      final places = await repo.placesNearRoute(
+      // Places and categories are independent reads (categories are a static
+      // catalog). Fetching them concurrently cuts latency on every load, and
+      // the category list is cached so refresh cycles don't re-query the DB.
+      final categoriesFuture = _cachedCategories != null
+          ? Future<List<PlaceCategory>>.value(_cachedCategories!)
+          : repo.categories().then((c) {
+              _cachedCategories = c;
+              return c;
+            }).catchError((Object _) => <PlaceCategory>[]);
+      final placesFuture = repo.placesNearRoute(
         originLat: form.originLat!,
         originLng: form.originLng!,
         destLat: form.destinationLat!,
@@ -58,12 +68,10 @@ class PlacesNotifier extends AsyncNotifier<PlacesNearRoute> {
             ? route.fuelCost! / route.distanceKm
             : null,
       );
-      List<PlaceCategory> categories = const [];
-      try {
-        categories = await repo.categories();
-      } catch (_) {
-        // Categories are a filter nicety; a fetch failure must not block the list.
-      }
+      final (places, categories) = await (
+        placesFuture,
+        categoriesFuture,
+      ).wait;
       return PlacesNearRoute(places: places, categories: categories);
     });
   }

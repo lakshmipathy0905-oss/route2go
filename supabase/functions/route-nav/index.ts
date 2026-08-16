@@ -11,7 +11,11 @@
 // of the guest planning flow, and no user data is persisted here.
 
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
-import { getRoutingProvider, type RoutePoint } from "../_shared/providers/routingProvider.ts";
+import {
+  getRoutingProvider,
+  type RoutePoint,
+} from "../_shared/providers/routingProvider.ts";
+import { rateLimitGuard } from "../_shared/rateLimit.ts";
 
 interface RouteNavRequest {
   origin: RoutePoint;
@@ -23,14 +27,31 @@ Deno.serve(async (req: Request) => {
   const reqId = requestId();
 
   if (req.method !== "POST") {
-    return jsonError(405, "METHOD_NOT_ALLOWED", "Only POST is supported.", reqId, false);
+    return jsonError(
+      405,
+      "METHOD_NOT_ALLOWED",
+      "Only POST is supported.",
+      reqId,
+      false,
+    );
   }
+
+  // Live reroutes are user-initiated and sparse; a generous per-key cap still
+  // protects Valhalla from a single abusive client.
+  const tooMany = rateLimitGuard(req, 30, 60_000, reqId);
+  if (tooMany) return tooMany;
 
   let body: RouteNavRequest;
   try {
     body = await req.json();
   } catch {
-    return jsonError(422, "INVALID_JSON", "Request body must be valid JSON.", reqId, false);
+    return jsonError(
+      422,
+      "INVALID_JSON",
+      "Request body must be valid JSON.",
+      reqId,
+      false,
+    );
   }
 
   const validationError = validateRouteNavRequest(body);
@@ -39,28 +60,41 @@ Deno.serve(async (req: Request) => {
   }
 
   const routingProvider = getRoutingProvider();
-  let routeAlternatives;
+  let route: Awaited<ReturnType<typeof routingProvider.getSingleRoute>>;
   try {
-    routeAlternatives = await routingProvider.getRouteAlternatives({
+    // Navigation needs exactly one route. getSingleRoute issues a single
+    // Valhalla request (no alternatives, no toll-free profile) so live reroutes
+    // are fast and never discard work — see routingProvider.getSingleRoute.
+    route = await routingProvider.getSingleRoute({
       origin: body.origin,
       destination: body.destination,
       waypoints: body.waypoints ?? [],
       roundTrip: false,
     });
   } catch {
-    return jsonError(502, "ROUTE_PROVIDER_UNAVAILABLE", "Route data is temporarily unavailable. Please try again.", reqId, true);
+    return jsonError(
+      502,
+      "ROUTE_PROVIDER_UNAVAILABLE",
+      "Route data is temporarily unavailable. Please try again.",
+      reqId,
+      true,
+    );
   }
 
-  if (!routeAlternatives || routeAlternatives.length === 0) {
-    return jsonError(404, "NO_ROUTE_FOUND", "No route available for this input. Check the locations or try a nearby major town.", reqId, false);
+  if (!route) {
+    return jsonError(
+      404,
+      "NO_ROUTE_FOUND",
+      "No route available for this input. Check the locations or try a nearby major town.",
+      reqId,
+      false,
+    );
   }
 
-  // Navigation uses the recommended (first) alternative only.
-  const route = routeAlternatives[0];
   return jsonOk(
     {
       route: {
-        route_type: "recommended",
+        route_type: route.routeType,
         distance_km: route.distanceKm,
         duration_min: route.durationMin,
         geometry: route.geometry,
@@ -69,15 +103,21 @@ Deno.serve(async (req: Request) => {
         fetched_at: new Date().toISOString(),
       },
     },
-    reqId
+    reqId,
   );
 });
 
 function validateRouteNavRequest(body: RouteNavRequest): string | null {
-  if (!body?.origin || typeof body.origin.lat !== "number" || typeof body.origin.lng !== "number") {
+  if (
+    !body?.origin || typeof body.origin.lat !== "number" ||
+    typeof body.origin.lng !== "number"
+  ) {
     return "origin.lat and origin.lng are required numbers.";
   }
-  if (!body?.destination || typeof body.destination.lat !== "number" || typeof body.destination.lng !== "number") {
+  if (
+    !body?.destination || typeof body.destination.lat !== "number" ||
+    typeof body.destination.lng !== "number"
+  ) {
     return "destination.lat and destination.lng are required numbers.";
   }
   if (body.waypoints) {
@@ -90,8 +130,12 @@ function validateRouteNavRequest(body: RouteNavRequest): string | null {
       }
     }
   }
-  const coordInRange = (lat: number, lng: number) => lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-  if (!coordInRange(body.origin.lat, body.origin.lng) || !coordInRange(body.destination.lat, body.destination.lng)) {
+  const coordInRange = (lat: number, lng: number) =>
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  if (
+    !coordInRange(body.origin.lat, body.origin.lng) ||
+    !coordInRange(body.destination.lat, body.destination.lng)
+  ) {
     return "Coordinates are out of valid range.";
   }
   return null;

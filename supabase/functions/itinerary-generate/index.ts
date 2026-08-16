@@ -23,19 +23,37 @@
 // unit-testable; this file is a thin HTTP + persistence wrapper.
 
 import { jsonError, jsonOk, requestId } from "../_shared/http.ts";
-import { authRequest, AuthError } from "../_shared/auth.ts";
-import { generateItinerary, validateItineraryInput, type ItineraryInput } from "../_shared/itineraryScheduler.ts";
+import { AuthError, authRequest } from "../_shared/auth.ts";
+import {
+  generateItinerary,
+  type ItineraryInput,
+  validateItineraryInput,
+} from "../_shared/itineraryScheduler.ts";
+import { rateLimitGuard } from "../_shared/rateLimit.ts";
 
 function asMap(v: unknown): Record<string, unknown> {
-  return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
+  return typeof v === "object" && v !== null
+    ? (v as Record<string, unknown>)
+    : {};
 }
 
 Deno.serve(async (req: Request) => {
   const reqId = requestId();
 
   if (req.method !== "POST") {
-    return jsonError(405, "METHOD_NOT_ALLOWED", "Only POST is supported.", reqId, false);
+    return jsonError(
+      405,
+      "METHOD_NOT_ALLOWED",
+      "Only POST is supported.",
+      reqId,
+      false,
+    );
   }
+
+  // Itinerary generation does CPU-heavy scheduling + persistence; a per-key
+  // cap prevents a single client from queuing an unbounded number of jobs.
+  const tooMany = rateLimitGuard(req, 30, 60_000, reqId);
+  if (tooMany) return tooMany;
 
   let ctx;
   try {
@@ -51,27 +69,44 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    return jsonError(422, "INVALID_JSON", "Request body must be valid JSON.", reqId, false);
+    return jsonError(
+      422,
+      "INVALID_JSON",
+      "Request body must be valid JSON.",
+      reqId,
+      false,
+    );
   }
 
   const trip = asMap(body.trip);
-  const selectedPlaces = Array.isArray(body.selected_places) ? body.selected_places.map(asMap) : [];
-  const selectedStays = Array.isArray(body.selected_stays) ? body.selected_stays.map(asMap) : [];
+  const selectedPlaces = Array.isArray(body.selected_places)
+    ? body.selected_places.map(asMap)
+    : [];
+  const selectedStays = Array.isArray(body.selected_stays)
+    ? body.selected_stays.map(asMap)
+    : [];
 
   // Estimate distance/duration when not supplied: straight-line * road factor.
   const originLat = Number(trip.origin_lat);
   const originLng = Number(trip.origin_lng);
   const destLat = Number(trip.destination_lat);
   const destLng = Number(trip.destination_lng);
-  const hasCoords = [originLat, originLng, destLat, destLng].every((v) => isFinite(v));
+  const hasCoords = [originLat, originLng, destLat, destLng].every((v) =>
+    isFinite(v)
+  );
 
-  function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  function haversineKm(
+    aLat: number,
+    aLng: number,
+    bLat: number,
+    bLng: number,
+  ): number {
     const R = 6371;
     const dLat = ((bLat - aLat) * Math.PI) / 180;
     const dLng = ((bLng - aLng) * Math.PI) / 180;
-    const s =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    const s = Math.sin(dLat / 2) ** 2 +
+      Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(s));
   }
 
@@ -80,7 +115,9 @@ Deno.serve(async (req: Request) => {
   if (hasCoords) {
     const straight = haversineKm(originLat, originLng, destLat, destLng);
     if (!(totalDistanceKm > 0)) totalDistanceKm = Math.round(straight * 1.3);
-    if (!(totalDriveMin > 0)) totalDriveMin = Math.round((totalDistanceKm / 50) * 60);
+    if (!(totalDriveMin > 0)) {
+      totalDriveMin = Math.round((totalDistanceKm / 50) * 60);
+    }
   }
 
   const maxDriveHours = Number(body.max_driving_hours_per_day ?? 8);
@@ -91,25 +128,43 @@ Deno.serve(async (req: Request) => {
     total_distance_km: totalDistanceKm,
     total_drive_min: totalDriveMin,
     max_driving_hours_per_day: maxDriveHours,
-    budget_total: body.budget_total != null ? Number(body.budget_total) : trip.budget_total != null ? Number(trip.budget_total) : null,
-    trip_type: String(trip.trip_type ?? "one_way") === "round_trip" ? "round_trip" : "one_way",
+    budget_total: body.budget_total != null
+      ? Number(body.budget_total)
+      : trip.budget_total != null
+      ? Number(trip.budget_total)
+      : null,
+    trip_type: String(trip.trip_type ?? "one_way") === "round_trip"
+      ? "round_trip"
+      : "one_way",
     selected_places: selectedPlaces.map((p) => ({
       id: String(p.id ?? ""),
       name: String(p.name ?? "Place"),
       detour_duration_min: Number(p.detour_duration_min ?? 0) || 30,
-      est_cost: p.est_cost != null ? Number(p.est_cost) : p.detour_added_cost != null ? Number(p.detour_added_cost) : null,
+      est_cost: p.est_cost != null
+        ? Number(p.est_cost)
+        : p.detour_added_cost != null
+        ? Number(p.detour_added_cost)
+        : null,
     })),
     selected_stays: selectedStays.map((s) => ({
       id: String(s.id ?? ""),
       name: String(s.name ?? "Stay"),
-      price_per_night: s.price_per_night != null ? Number(s.price_per_night) : null,
+      price_per_night: s.price_per_night != null
+        ? Number(s.price_per_night)
+        : null,
       nights: s.nights != null ? Number(s.nights) : 1,
     })),
   };
 
   const issues = validateItineraryInput(input);
   if (issues.length > 0) {
-    return jsonError(422, "VALIDATION_ERROR", issues.map((i) => i.message).join(" "), reqId, false);
+    return jsonError(
+      422,
+      "VALIDATION_ERROR",
+      issues.map((i) => i.message).join(" "),
+      reqId,
+      false,
+    );
   }
 
   const days = generateItinerary(input);
@@ -146,9 +201,16 @@ Deno.serve(async (req: Request) => {
         });
       }
       if (rows.length > 0) {
-        const { error: insErr } = await ctx.supabase.from("itinerary_items").insert(rows);
+        const { error: insErr } = await ctx.supabase.from("itinerary_items")
+          .insert(rows);
         if (insErr) {
-          return jsonError(500, "DB_ERROR", "Could not save itinerary.", reqId, true);
+          return jsonError(
+            500,
+            "DB_ERROR",
+            "Could not save itinerary.",
+            reqId,
+            true,
+          );
         }
       }
     }

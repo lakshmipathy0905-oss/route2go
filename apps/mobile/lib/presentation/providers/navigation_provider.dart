@@ -145,9 +145,7 @@ class NavigationNotifier extends Notifier<NavigationState> {
   Future<void> start() async {
     final form = ref.read(tripPlanningFormProvider);
     final calc = ref.read(tripCalculationProvider).valueOrNull;
-    if (!form.isReadyToCalculate ||
-        calc == null ||
-        calc.routes.isEmpty) return;
+    if (!form.isReadyToCalculate || calc == null || calc.routes.isEmpty) return;
 
     final route = selectRoute(calc, ref.read(selectedRouteTypeProvider));
     if (route == null) return;
@@ -260,22 +258,43 @@ class NavigationNotifier extends Notifier<NavigationState> {
     final route = state.route;
     if (route == null) return;
 
-    state = state.copyWith(position: update);
-
     // Arrival short-circuit: stop GPS processing once arrived.
     if (state.status == NavigationStatus.arrived) {
+      state = state.copyWith(position: update);
       return;
     }
 
     final progressEngine = _progressEngine;
-    if (progressEngine == null) return;
+    if (progressEngine == null) {
+      state = state.copyWith(position: update);
+      return;
+    }
 
     var progress = progressEngine.progressAt(LatLng(update.lat, update.lng));
     progress = _eta?.withEta(progress, now: update.timestamp) ?? progress;
 
+    // Single coalesced write per GPS tick. Earlier this tick wrote position,
+    // then progress+status, then maneuver fields — 2-3 listener notifications
+    // per update for values that are all part of the same navigation snapshot.
+    // Combining them into one copyWith keeps consumers (which all use
+    // `.select`) receiving identical values with a single notification.
+    final maneuverEngine = _maneuverEngine;
+    final NavigationStep? nextManeuver;
+    final double distanceToNextKm;
+    if (maneuverEngine == null) {
+      nextManeuver = null;
+      distanceToNextKm = 0;
+    } else {
+      nextManeuver = maneuverEngine.nextManeuver(progress);
+      distanceToNextKm = maneuverEngine.distanceToNextKm(progress);
+    }
+
     state = state.copyWith(
+      position: update,
       status: NavigationStatus.navigating,
       progress: progress,
+      nextManeuver: nextManeuver,
+      distanceToNextKm: distanceToNextKm,
     );
 
     // Dev-only diagnostics for on-device validation. Logs sensor/route metrics
@@ -294,23 +313,13 @@ class NavigationNotifier extends Notifier<NavigationState> {
       );
     }
 
-    _updateManeuver(progress, update);
+    _maybeAnnounce(nextManeuver, distanceToNextKm);
     _updateArrival(progress, update);
     _updateOffRoute(progress, update);
   }
 
-  void _updateManeuver(RouteProgress progress, LocationUpdate update) {
-    final engine = _maneuverEngine;
-    if (engine == null) {
-      state = state.copyWith(nextManeuver: null, distanceToNextKm: 0);
-      return;
-    }
-    final next = engine.nextManeuver(progress);
-    final distKm = engine.distanceToNextKm(progress);
-    state = state.copyWith(nextManeuver: next, distanceToNextKm: distKm);
-
+  void _maybeAnnounce(NavigationStep? next, double distKm) {
     if (next == null) return;
-
     // Voice: announce when a maneuver becomes next, or when the approach
     // crosses a coarse distance bucket — never on every GPS tick.
     final bucket = _announceBucket(distKm);

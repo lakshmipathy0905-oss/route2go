@@ -48,12 +48,15 @@ void main() {
     expect(find.text('Use my current location'), findsWidgets);
   });
 
-  testWidgets('searching shows a result sheet and selecting a result shows the '
+  testWidgets(
+      'searching shows a result sheet and selecting a result shows the '
       'destination sheet', (tester) async {
     await pumpMap(tester);
 
-    await tester.enterText(
-        find.byType(TextField), 'Kahale, HI');
+    await tester.enterText(find.byType(TextField), 'Kahale, HI');
+    // The search bar debounces keystrokes (300ms) before querying; advance
+    // past the debounce so the request fires.
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
 
     // Result sheet appears with the canned result.
@@ -75,6 +78,7 @@ void main() {
     await pumpMap(tester);
 
     await tester.enterText(find.byType(TextField), 'Kahale, HI');
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
     expect(find.text('Search Results'), findsOneWidget);
 
@@ -82,13 +86,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Search Results'), findsNothing);
   });
+
+  testWidgets('search debounces: a burst of keystrokes fires one request',
+      (tester) async {
+    await pumpMap(tester);
+    SearchNotifierStub.searchCalls = 0;
+
+    // Rapid typing resets the 300ms debounce each keystroke.
+    for (final text in ['K', 'Ka', 'Kah', 'Kaha', 'Kahal', 'Kahale, HI']) {
+      await tester.enterText(find.byType(TextField), text);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    // 50ms after the last keystroke — still inside the debounce window.
+    expect(SearchNotifierStub.searchCalls, 0);
+
+    // Once the query settles for 300ms, exactly one search fires.
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(SearchNotifierStub.searchCalls, 1);
+    expect(find.text('Search Results'), findsOneWidget);
+  });
+
+  testWidgets('pausing mid-typing fires, then the next burst fires again',
+      (tester) async {
+    await pumpMap(tester);
+    SearchNotifierStub.searchCalls = 0;
+
+    await tester.enterText(find.byType(TextField), 'Kahale, HI');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(SearchNotifierStub.searchCalls, 1);
+
+    await tester.enterText(find.byType(TextField), 'Kauai, HI');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(SearchNotifierStub.searchCalls, 2);
+  });
 }
 
 /// Deterministic, offline search notifier that never touches the network.
 class SearchNotifierStub extends SearchNotifier {
+  /// Counts how many times [search] was invoked, so debounce tests can assert
+  /// that a burst of keystrokes collapses into a single request.
+  static int searchCalls = 0;
+
   @override
   Future<void> search(String q) async {
-    state = AsyncData(const SearchResponse(
+    searchCalls++;
+    state = const AsyncData(SearchResponse(
       results: [
         SearchResult(
           kind: 'place',

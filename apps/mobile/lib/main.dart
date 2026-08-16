@@ -39,11 +39,21 @@ Future<void> main() async {
   // Supabase client here uses only the anon key — safe for the mobile app.
   // The service-role key NEVER ships in this app; privileged writes go
   // through the Edge Functions in supabase/functions/.
-  await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL', defaultValue: ''),
-    publishableKey:
-        const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
-  );
+  //
+  // Deliberately non-blocking and failure-tolerant: no app code reads
+  // Supabase directly today (all data flows through the Edge Functions via
+  // ApiClient), so launch must never wait on this call. A 3s timeout and a
+  // swallowed failure guarantee first paint is never delayed by it.
+  try {
+    await Supabase.initialize(
+      url: const String.fromEnvironment('SUPABASE_URL', defaultValue: ''),
+      publishableKey:
+          const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
+    ).timeout(const Duration(seconds: 3));
+  } catch (_) {
+    // Tolerated: Supabase is unused by the app today. If a future feature
+    // reads Supabase directly, make this await explicit again.
+  }
 
   runApp(const ProviderScope(child: Route2GoApp()));
 }

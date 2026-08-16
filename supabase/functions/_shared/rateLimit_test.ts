@@ -34,11 +34,22 @@ Deno.test("rate limit window resets for a new period", () => {
   assert(other.allowed);
 });
 
-Deno.test("clientKey prefers the first x-forwarded-for hop", () => {
+Deno.test("clientKey uses the last (trusted) x-forwarded-for hop", () => {
   const req = new Request("http://local", {
     headers: { "x-forwarded-for": "203.0.113.7, 10.0.0.1" },
   });
-  assertEquals(clientKey(req), "203.0.113.7");
+  // The leftmost value is attacker-controlled; the gateway-appended tail hop
+  // is the real client address and the only one we can trust for limiting.
+  assertEquals(clientKey(req), "10.0.0.1");
+});
+
+Deno.test("clientKey ignores spoofed leading hops", () => {
+  const req = new Request("http://local", {
+    headers: {
+      "x-forwarded-for": "1.2.3.4, 6.7.8.9, 10.0.0.1, 198.51.100.23",
+    },
+  });
+  assertEquals(clientKey(req), "198.51.100.23");
 });
 
 Deno.test("clientKey falls back to unknown when absent", () => {

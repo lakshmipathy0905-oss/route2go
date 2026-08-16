@@ -4,6 +4,11 @@
 // adapter is used when GEOCODING_PROVIDER_KEY is absent so local dev works
 // without external keys; real deployments should set the key and use a
 // provider like Nominatim (OSM) — the interface below is provider-agnostic.
+//
+// Performance guards (Phase 4): every upstream call is bounded by a strict
+// timeout so a slow public geocoder can never hold a worker isolate hostage,
+// and identical repeated queries are served from a small TTL cache so
+// debounced typing never hammers a shared public service.
 
 export interface GeocodedPlace {
   label: string;
@@ -11,6 +16,56 @@ export interface GeocodedPlace {
   lng: number;
   subtitle?: string;
 }
+
+const HTTP_TIMEOUT_MS = 6_000;
+
+// Bounded in-memory TTL cache shared by both live adapters. Keys are the
+// exact request string (normalized query or lat/lng pair) so identical
+// debounced searches reuse the answer instead of re-hitting Photon/Nominatim.
+// `now` is injectable so unit tests can exercise expiry without sleeping.
+export class GeocoderCache {
+  private static readonly TTL_MS = 30 * 60 * 1000;
+  private static readonly MAX_ENTRIES = 64;
+  private static store = new Map<string, { at: number; value: unknown }>();
+
+  static get(key: string, now = Date.now()): unknown | undefined {
+    const hit = GeocoderCache.store.get(key);
+    if (!hit) return undefined;
+    if (now - hit.at > GeocoderCache.TTL_MS) {
+      GeocoderCache.store.delete(key);
+      return undefined;
+    }
+    return hit.value;
+  }
+
+  static set(key: string, value: unknown, now = Date.now()): void {
+    if (GeocoderCache.store.size >= GeocoderCache.MAX_ENTRIES) {
+      const first = GeocoderCache.store.keys().next().value as
+        | string
+        | undefined;
+      if (first !== undefined) GeocoderCache.store.delete(first);
+    }
+    GeocoderCache.store.set(key, { at: now, value });
+  }
+
+  static clear(): void {
+    GeocoderCache.store.clear();
+  }
+}
+
+function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  ms: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
+const USER_AGENT = "Route2Go/0.1 (contact: support@route2go.example)";
 
 export interface GeocodingProvider {
   forward(query: string): Promise<GeocodedPlace[]>;
@@ -128,16 +183,17 @@ class PhotonGeocodingProvider implements GeocodingProvider {
   private static BASE = "https://photon.komoot.io";
 
   private async fetchJson(url: string): Promise<unknown> {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Route2Go/0.1 (contact: support@route2go.example)",
-      },
-    });
+    const res = await fetchWithTimeout(url, {
+      headers: { "User-Agent": USER_AGENT },
+    }, HTTP_TIMEOUT_MS);
     if (!res.ok) throw new Error(`Geocoding provider error ${res.status}`);
     return res.json();
   }
 
   async forward(query: string): Promise<GeocodedPlace[]> {
+    const cacheKey = `f:${query.trim().toLowerCase()}`;
+    const cached = GeocoderCache.get(cacheKey);
+    if (cached !== undefined) return cached as GeocodedPlace[];
     const searchQuery = resolvePhotonQuery(query);
     if (!searchQuery) return [];
     const url =
@@ -146,16 +202,24 @@ class PhotonGeocodingProvider implements GeocodingProvider {
       }` +
       `&limit=6&lang=en`;
     const data = (await this.fetchJson(url)) as { features?: unknown };
-    return mapPhotonFeatures(data.features, searchQuery);
+    const results = mapPhotonFeatures(data.features, searchQuery);
+    GeocoderCache.set(cacheKey, results);
+    return results;
   }
 
   async reverse(lat: number, lng: number): Promise<GeocodedPlace | null> {
+    const cacheKey = `r:${lat.toFixed(4)}:${lng.toFixed(4)}`;
+    const cached = GeocoderCache.get(cacheKey);
+    if (cached !== undefined) return cached as GeocodedPlace | null;
     const url =
       `${PhotonGeocodingProvider.BASE}/reverse?lat=${lat}&lon=${lng}&lang=en`;
     const data = (await this.fetchJson(url)) as { features?: unknown };
     const features = mapPhotonFeatures(data.features, "");
-    if (features.length === 0) return null;
-    return { ...features[0], subtitle: "Picked on map" };
+    const result = features.length === 0
+      ? null
+      : { ...features[0], subtitle: "Picked on map" };
+    GeocoderCache.set(cacheKey, result);
+    return result;
   }
 }
 
@@ -163,16 +227,17 @@ class NominatimProvider implements GeocodingProvider {
   private static BASE = "https://nominatim.openstreetmap.org";
 
   private async fetchJson(url: string): Promise<unknown> {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Route2Go/0.1 (contact: support@route2go.example)",
-      },
-    });
+    const res = await fetchWithTimeout(url, {
+      headers: { "User-Agent": USER_AGENT },
+    }, HTTP_TIMEOUT_MS);
     if (!res.ok) throw new Error(`Geocoding provider error ${res.status}`);
     return res.json();
   }
 
   async forward(query: string): Promise<GeocodedPlace[]> {
+    const cacheKey = `f:${query.trim().toLowerCase()}`;
+    const cached = GeocoderCache.get(cacheKey);
+    if (cached !== undefined) return cached as GeocodedPlace[];
     // Region-biased search: without a country restriction Nominatim favours
     // large English-speaking geos, so a generic query like "temple" resolves to
     // Texas instead of India. Route2Go is India-first (fuel region IN, India
@@ -200,25 +265,31 @@ class NominatimProvider implements GeocodingProvider {
       }
     }
 
-    return data.map((r) => ({
+    const results = data.map((r) => ({
       label: (r.display_name as string) ?? query,
       lat: Number(r.lat),
       lng: Number(r.lon),
       subtitle: (r.type as string) ?? undefined,
     }));
+    GeocoderCache.set(cacheKey, results);
+    return results;
   }
 
   async reverse(lat: number, lng: number): Promise<GeocodedPlace | null> {
+    const cacheKey = `r:${lat.toFixed(4)}:${lng.toFixed(4)}`;
+    const cached = GeocoderCache.get(cacheKey);
+    if (cached !== undefined) return cached as GeocodedPlace | null;
     const url =
       `${NominatimProvider.BASE}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=12`;
     const data = (await this.fetchJson(url)) as Record<string, unknown>;
-    if (!data || !data.display_name) return null;
-    return {
+    const result = (!data || !data.display_name) ? null : {
       label: data.display_name as string,
       lat,
       lng,
       subtitle: "Picked on map",
     };
+    GeocoderCache.set(cacheKey, result);
+    return result;
   }
 }
 

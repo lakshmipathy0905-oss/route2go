@@ -123,6 +123,9 @@ export function matchCategory(query: string): OsmTag[] {
 }
 
 // Build an Overpass QL body that searches node/way/relation around a point.
+// The server timeout is aligned with the client abort budget (10s, see
+// OverpassPoiProvider.searchNear) so we never ask a public server to keep
+// computing longer than we are willing to wait.
 export function buildOverpassQuery(
   tags: OsmTag[],
   lat: number,
@@ -133,7 +136,7 @@ export function buildOverpassQuery(
   const blocks = tags.map(
     (t) => `nwr["${t.key}"="${t.value}"](around:${r},${lat},${lng});`,
   );
-  return `[out:json][timeout:15];\n(\n  ${
+  return `[out:json][timeout:10];\n(\n  ${
     blocks.join("\n  ")
   }\n);\nout center tags 40;`;
 }

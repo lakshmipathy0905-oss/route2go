@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -331,9 +333,12 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
   LatLng? _currentLocation;
   bool _showSearchResults = false;
   List<SearchResult> _searchResults = [];
+  Timer? _searchDebounce;
+  int _searchRequestId = 0;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -504,7 +509,8 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
               onPressed: _locating
                   ? null
                   : (_currentLocation != null ? _recenter : _useMyLocation),
-              icon: _locating                  ? const SizedBox(
+              icon: _locating
+                  ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -563,7 +569,8 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     }
   }
 
-  Future<void> _onSearch(String query) async {
+  void _onSearch(String query) {
+    _searchDebounce?.cancel();
     if (query.trim().length < 2) {
       setState(() {
         _searchResults = [];
@@ -571,6 +578,18 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
       });
       return;
     }
+    // Debounce keystrokes so a burst of typing resolves to a single search
+    // request (search proxies Photon/Overpass, so per-keystroke calls would
+    // multiply upstream load). 300ms of idle, then search.
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      unawaited(_runSearch(query));
+    });
+  }
+
+  Future<void> _runSearch(String query) async {
+    // Monotonic token: if a newer query started while this one was in flight,
+    // this response is stale and must not overwrite the newer results.
+    final requestId = ++_searchRequestId;
 
     // Ensure the provider is initialized before mutating it. Otherwise the
     // async build() can complete after search() and clobber the fresh state.
@@ -579,13 +598,13 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     } catch (_) {
       // Provider is offline or errored; fall through and let search handle it.
     }
-    if (!mounted) return;
+    if (!mounted || requestId != _searchRequestId) return;
 
     await ref.read(searchProvider.notifier).search(query);
-    if (!mounted) return;
+    if (!mounted || requestId != _searchRequestId) return;
 
     final response = ref.read(searchProvider).valueOrNull;
-    if (!mounted) return;
+    if (!mounted || requestId != _searchRequestId) return;
 
     setState(() {
       _searchResults = response?.results ?? [];
@@ -674,7 +693,8 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
 
     if (calc == null || calc.routes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No route available for this destination.')),
+        const SnackBar(
+            content: Text('No route available for this destination.')),
       );
       return;
     }
@@ -718,7 +738,8 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
   void _shareRoute(SearchResult result) {
     if (result.lat == null || result.lng == null) return;
 
-    final payload = 'Location: ${result.lat!.toStringAsFixed(6)}, ${result.lng!.toStringAsFixed(6)}\n'
+    final payload =
+        'Location: ${result.lat!.toStringAsFixed(6)}, ${result.lng!.toStringAsFixed(6)}\n'
         'Destination: ${result.title}\n'
         'Route: Calculating...';
 
@@ -1051,8 +1072,8 @@ class _SearchResultsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.card)),
+      borderRadius:
+          const BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
       clipBehavior: Clip.antiAlias,
       child: Container(
         constraints: BoxConstraints(
@@ -1146,7 +1167,8 @@ class _DestinationSheet extends ConsumerWidget {
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
