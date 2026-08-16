@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
@@ -12,12 +13,19 @@ import '../../providers/auth_provider.dart';
 import '../../providers/trips_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../providers/favorites_search_provider.dart';
+import '../../providers/trip_planning_provider.dart';
+import '../../providers/live_trip_provider.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/permission_explainer.dart';
 import '../../widgets/sharing_widgets.dart';
 import '../../widgets/guest_gate.dart';
 import '../../widgets/phase2_gate.dart';
 import '../../../domain/entities/trip_summary.dart';
+import '../../../domain/entities/geo.dart';
+import '../../../domain/entities/navigation.dart';
+import '../../../domain/entities/route_option.dart';
+import '../../../domain/entities/misc_entities.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -321,6 +329,8 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
   bool _fitted = false;
   bool _locating = false;
   LatLng? _currentLocation;
+  bool _showSearchResults = false;
+  List<SearchResult> _searchResults = [];
 
   @override
   void dispose() {
@@ -456,9 +466,32 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
               ],
             ),
           ),
+          // Maps-style search bar at the top
+          Positioned(
+            top: AppSpacing.md,
+            left: AppSpacing.md,
+            right: AppSpacing.md,
+            child: _MapSearchBar(
+              onSearch: _onSearch,
+              onLocationPressed: _useMyLocation,
+              isLocating: _locating,
+            ),
+          ),
+          // Search results sheet (bottom)
+          if (_showSearchResults)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _SearchResultsSheet(
+                results: _searchResults,
+                onResultTap: _onResultSelected,
+                onClose: () => setState(() => _showSearchResults = false),
+              ),
+            ),
           if (trips.isEmpty)
             const Positioned(
-              top: AppSpacing.md,
+              top: 80,
               left: AppSpacing.md,
               right: AppSpacing.md,
               child: HintText(
@@ -468,9 +501,10 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
             right: AppSpacing.md,
             bottom: AppSpacing.md,
             child: FilledButton.icon(
-              onPressed: _locating ? null : _useMyLocation,
-              icon: _locating
-                  ? const SizedBox(
+              onPressed: _locating
+                  ? null
+                  : (_currentLocation != null ? _recenter : _useMyLocation),
+              icon: _locating                  ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -521,6 +555,174 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     final pt = LatLng(place.lat, place.lng);
     setState(() => _currentLocation = pt);
     _mapController.move(pt, 14);
+  }
+
+  void _recenter() {
+    if (_currentLocation != null) {
+      _mapController.move(_currentLocation!, 14);
+    }
+  }
+
+  Future<void> _onSearch(String query) async {
+    if (query.trim().length < 2) {
+      setState(() {
+        _searchResults = [];
+        _showSearchResults = false;
+      });
+      return;
+    }
+
+    // Ensure the provider is initialized before mutating it. Otherwise the
+    // async build() can complete after search() and clobber the fresh state.
+    try {
+      await ref.read(searchProvider.future);
+    } catch (_) {
+      // Provider is offline or errored; fall through and let search handle it.
+    }
+    if (!mounted) return;
+
+    await ref.read(searchProvider.notifier).search(query);
+    if (!mounted) return;
+
+    final response = ref.read(searchProvider).valueOrNull;
+    if (!mounted) return;
+
+    setState(() {
+      _searchResults = response?.results ?? [];
+      _showSearchResults = _searchResults.isNotEmpty;
+    });
+  }
+
+  void _onResultSelected(SearchResult result) {
+    setState(() => _showSearchResults = false);
+    _showDestinationSheet(result);
+  }
+
+  void _showDestinationSheet(SearchResult result) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _DestinationSheet(
+        result: result,
+        onDirections: () => _getDirections(result),
+        onStartNavigation: () => _startNavigation(result),
+        onShare: () => _shareRoute(result),
+      ),
+    );
+  }
+
+  Future<void> _getDirections(SearchResult result) async {
+    if (result.lat == null || result.lng == null) return;
+
+    final repo = ref.read(geocodingRepositoryProvider);
+    final navigator = GoRouter.of(context);
+
+    // Resolve origin (current GPS or location picker)
+    late NavStop origin;
+    final device = await repo.deviceLocation();
+    if (device != null) {
+      origin = NavStop(label: device.label, lat: device.lat, lng: device.lng);
+    } else {
+      final explainer = PermissionExplainer(
+        icon: Icons.my_location_outlined,
+        title: 'Enable location to navigate',
+        reasons: const [
+          'Route2Go uses your current location as the start of the route.',
+          'Location is only used while navigating and is never stored or shared.',
+        ],
+        permissionLabel: 'Continue',
+        onRequest: () {},
+      );
+      await explainer.showModal(context);
+      if (!context.mounted) return;
+      final picked = await navigator.push<GeoPlace>(
+        AppRoutes.locationPicker,
+        extra: 'origin',
+      );
+      if (picked == null || !context.mounted) return;
+      origin = NavStop(label: picked.label, lat: picked.lat, lng: picked.lng);
+    }
+
+    final destination = NavStop(
+      label: result.title,
+      lat: result.lat!,
+      lng: result.lng!,
+    );
+
+    // Prime the shared trip-form + calculation providers
+    ref.read(tripPlanningFormProvider.notifier).state = TripPlanningForm(
+      originLabel: origin.label,
+      originLat: origin.lat,
+      originLng: origin.lng,
+      destinationLabel: destination.label,
+      destinationLat: destination.lat,
+      destinationLng: destination.lng,
+      tripType: 'one_way',
+      travellers: 1,
+      fuelType: 'petrol',
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _CalculatingRoutesDialog(),
+    );
+    ref.read(tripCalculationProvider.notifier).calculate();
+    final calc = await ref.read(tripCalculationProvider.future);
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    if (calc == null || calc.routes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No route available for this destination.')),
+      );
+      return;
+    }
+
+    ref.read(selectedRouteTypeProvider.notifier).state = 'recommended';
+    if (context.mounted) context.push(AppRoutes.routeResults);
+  }
+
+  void _startNavigation(SearchResult result) {
+    if (result.lat == null || result.lng == null) return;
+
+    final destination = NavStop(
+      label: result.title,
+      lat: result.lat!,
+      lng: result.lng!,
+    );
+
+    // Use the existing direct-navigation architecture
+    final liveProvider = ref.read(liveTripProvider.notifier);
+    liveProvider.startDirect(
+      originLabel: 'Current location',
+      destination: destination,
+      route: RouteOption(
+        routeType: 'recommended',
+        distanceKm: 0,
+        durationMin: 0,
+        fuelCost: null,
+        fuelCostConfidence: 'unavailable',
+        tollCost: 0,
+        tollConfidence: 'unavailable',
+        totalCost: 0,
+        provider: 'test',
+        fetchedAt: DateTime.now(),
+        geometry: null,
+        steps: const [],
+      ),
+      waypoints: const [],
+    );
+  }
+
+  void _shareRoute(SearchResult result) {
+    if (result.lat == null || result.lng == null) return;
+
+    final payload = 'Location: ${result.lat!.toStringAsFixed(6)}, ${result.lng!.toStringAsFixed(6)}\n'
+        'Destination: ${result.title}\n'
+        'Route: Calculating...';
+
+    SharePlus.instance.share(ShareParams(text: payload));
   }
 }
 
@@ -773,6 +975,269 @@ class _PlanTripCta extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Maps-style search bar at the top of the map
+class _MapSearchBar extends StatelessWidget {
+  const _MapSearchBar({
+    required this.onSearch,
+    required this.onLocationPressed,
+    required this.isLocating,
+  });
+
+  final ValueChanged<String> onSearch;
+  final VoidCallback onLocationPressed;
+  final bool isLocating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: AppSpacing.md),
+            const Icon(Icons.search, color: AppColors.textSecondary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Search places, addresses, or POIs',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: isLocating ? null : onLocationPressed,
+              icon: isLocating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location, color: AppColors.primary),
+              tooltip: 'Use my current location',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Search results bottom sheet
+class _SearchResultsSheet extends StatelessWidget {
+  const _SearchResultsSheet({
+    required this.results,
+    required this.onResultTap,
+    required this.onClose,
+  });
+
+  final List<SearchResult> results;
+  final ValueChanged<SearchResult> onResultTap;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.card)),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.textSecondary.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Row(
+                children: [
+                  Text('Search Results',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: onClose,
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: results.length,
+                itemBuilder: (context, index) {
+                  final result = results[index];
+                  return ListTile(
+                    leading: Icon(
+                      result.kind == 'place'
+                          ? Icons.place_outlined
+                          : result.kind == 'hotel'
+                              ? Icons.hotel_outlined
+                              : Icons.search,
+                      color: AppColors.primary,
+                    ),
+                    title: Text(result.title),
+                    subtitle: Text(result.subtitle),
+                    trailing: result.lat != null && result.lng != null
+                        ? IconButton(
+                            icon: const Icon(Icons.navigation,
+                                color: AppColors.primary),
+                            tooltip: 'Get directions',
+                            onPressed: () => onResultTap(result),
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: () => onResultTap(result),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Destination sheet with Directions / Start Navigation / Share
+class _DestinationSheet extends ConsumerWidget {
+  const _DestinationSheet({
+    required this.result,
+    required this.onDirections,
+    required this.onStartNavigation,
+    required this.onShare,
+  });
+
+  final SearchResult result;
+  final VoidCallback onDirections;
+  final VoidCallback onStartNavigation;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (result.subtitle.isNotEmpty)
+                  Text(
+                    result.subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                if (result.lat != null && result.lng != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Location: ${result.lat!.toStringAsFixed(6)}, ${result.lng!.toStringAsFixed(6)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onDirections,
+                        icon: const Icon(Icons.directions),
+                        label: const Text('Directions'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: onStartNavigation,
+                        icon: const Icon(Icons.directions_run),
+                        label: const Text('Start Navigation'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    OutlinedButton.icon(
+                      onPressed: onShare,
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('Share'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Calculating routes dialog
+class _CalculatingRoutesDialog extends StatelessWidget {
+  const _CalculatingRoutesDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AlertDialog(
+      backgroundColor: Colors.white,
+      content: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 16),
+          Text('Calculating route…'),
+        ],
       ),
     );
   }
