@@ -93,6 +93,34 @@ Deno.test("parseOverpassResponse keeps named POIs with coords, drops noise", () 
   assert("lat" in results[1], "way centre is resolved");
 });
 
+Deno.test("parseOverpassResponse carries addr:city when present", () => {
+  const data = {
+    elements: [
+      {
+        type: "node",
+        id: 1,
+        lat: 12.97,
+        lon: 77.59,
+        tags: {
+          name: "Café A",
+          amenity: "cafe",
+          "addr:city": "Bengaluru",
+        },
+      },
+      {
+        type: "node",
+        id: 2,
+        lat: 12.98,
+        lon: 77.6,
+        tags: { name: "Café B", amenity: "cafe" },
+      },
+    ],
+  };
+  const results: PoiResult[] = parseOverpassResponse(data);
+  assertEquals(results[0].city, "Bengaluru");
+  assertEquals(results[1].city, undefined, "no addr:city -> no city field");
+});
+
 Deno.test("parseOverpassResponse handles garbage input", () => {
   assertEquals(parseOverpassResponse(null), []);
   assertEquals(parseOverpassResponse({}), []);

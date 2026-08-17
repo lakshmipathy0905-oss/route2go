@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
@@ -62,7 +63,21 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
     final selectedType = ref.watch(selectedRouteTypeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Route Options')),
+      appBar: AppBar(
+        title: const Text('Route Options'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share route',
+            // Only enabled when a real route exists — sharing never happens
+            // before a route is calculated (no fabricated payloads).
+            onPressed: calcState.valueOrNull != null &&
+                    (calcState.valueOrNull?.routes.isNotEmpty ?? false)
+                ? _shareSelectedRoute
+                : null,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: calcState.when(
           loading: () =>
@@ -162,8 +177,9 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
                 _StartNavigationCta(
                   route: selected ?? recommended,
                   destination: NavStop(
-                    label: ref.read(tripPlanningFormProvider).destinationLabel ??
-                        (selected?.label ?? recommended.label),
+                    label:
+                        ref.read(tripPlanningFormProvider).destinationLabel ??
+                            (selected?.label ?? recommended.label),
                     lat: ref.read(tripPlanningFormProvider).destinationLat ?? 0,
                     lng: ref.read(tripPlanningFormProvider).destinationLng ?? 0,
                   ),
@@ -178,6 +194,31 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
 
   bool _hasAnyTollEstimated(List<RouteOption> routes) =>
       routes.any((r) => r.tollConfidence == 'estimated');
+
+  /// Shares the selected route with its real info (label, distance, duration,
+  /// cost) and both coordinates. Route2Go has no deep-link URL scheme, so no
+  /// route2go:// link is fabricated — coordinates let a recipient open the
+  /// same places.
+  void _shareSelectedRoute() {
+    final calc = ref.read(tripCalculationProvider).valueOrNull;
+    if (calc == null || calc.routes.isEmpty) return;
+    final selected = selectRoute(calc, ref.read(selectedRouteTypeProvider)) ??
+        calc.routes.first;
+    final form = ref.read(tripPlanningFormProvider);
+    final payload = buildRouteShareText(
+      originLabel: form.originLabel ?? 'Origin',
+      destinationLabel: form.destinationLabel ?? selected.label,
+      routeLabel: selected.label,
+      distanceKm: selected.distanceKm,
+      durationMin: selected.durationMin,
+      totalCost: selected.totalCost,
+      originLat: form.originLat,
+      originLng: form.originLng,
+      destinationLat: form.destinationLat,
+      destinationLng: form.destinationLng,
+    );
+    SharePlus.instance.share(ShareParams(text: payload));
+  }
 }
 
 class _RouteMapCard extends ConsumerStatefulWidget {
@@ -625,11 +666,11 @@ class _StartNavigationCta extends ConsumerWidget {
     if (origin == null || !context.mounted) return;
 
     await ref.read(liveTripProvider.notifier).startDirect(
-          originLabel: origin.label,
-          destination: destination,
-          route: route,
-          waypoints: const [],
-        );
+      originLabel: origin.label,
+      destination: destination,
+      route: route,
+      waypoints: const [],
+    );
 
     if (context.mounted) context.push(AppRoutes.liveTrip);
   }

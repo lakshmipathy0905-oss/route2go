@@ -23,6 +23,10 @@
 .vscode/
 *.iml
 
+# iOS Swift Package Manager caches (build artifacts)
+**/swiftpm/
+**/Package.resolved
+
 # OS
 .DS_Store
 Thumbs.db

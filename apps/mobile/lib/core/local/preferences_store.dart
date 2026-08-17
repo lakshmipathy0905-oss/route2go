@@ -94,6 +94,10 @@ class PreferencesStore {
   static const _recentLocationsKey = 'recent_locations';
   static const _notificationPrefsKey = 'notification_prefs';
   static const _lastGuestTripKey = 'last_guest_trip';
+  static const _recentSearchesKey = 'recent_searches';
+  static const _mapStyleKey = 'map_style';
+
+  static const int maxRecentSearches = 10;
 
   bool get onboardingComplete =>
       _prefs.getBool(_onboardingCompleteKey) ?? false;
@@ -150,6 +154,34 @@ class PreferencesStore {
       await _prefs.setString(_lastGuestTripKey, jsonEncode(trip));
     }
   }
+
+  /// Recent search queries (map-tab + global search), most recent first,
+  /// local device only — never uploaded. Capped at [maxRecentSearches].
+  List<String> getRecentSearches() {
+    final raw = _prefs.getString(_recentSearchesKey);
+    if (raw == null) return const [];
+    return (jsonDecode(raw) as List<dynamic>? ?? const [])
+        .whereType<String>()
+        .toList();
+  }
+
+  Future<void> upsertRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    final updated = [
+      trimmed,
+      ...getRecentSearches()
+          .where((s) => s.toLowerCase() != trimmed.toLowerCase()),
+    ].take(maxRecentSearches).toList();
+    await _prefs.setString(_recentSearchesKey, jsonEncode(updated));
+  }
+
+  /// Map tile style chosen in the map tab layer switcher: 'styled' (styled
+  /// provider first with OSM fallback, the default) or 'standard' (OSM).
+  String getMapStyle() => _prefs.getString(_mapStyleKey) ?? 'styled';
+
+  Future<void> saveMapStyle(String style) =>
+      _prefs.setString(_mapStyleKey, style);
 }
 
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) {

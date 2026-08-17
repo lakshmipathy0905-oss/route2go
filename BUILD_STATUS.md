@@ -253,3 +253,49 @@ upgrades and verifies every screen flow. All checks green.
   Root cause of the on-device ₹0: a transient fuel-prices table lookup failure;
   re-verified on-device: Confirm now shows Est. cost ₹1082 for BLR→Mysuru.
 - `jsonError` gained an optional headers param (Retry-After); deno tests 76/76.
+
+---
+
+## Maps-mode completion pass (2026-08-17)
+
+Checkpoint `1a5ab87` frozen; this pass closes the Maps-mode product gaps found in
+the Phase 4 audit. Backend untouched; all changes are in `home_screen.dart` +
+`maps_mode_test.dart`.
+
+| Item | Status |
+|---|---|
+| **Start Navigation actually navigates (bug fix)**: the Map-tab Start Navigation button previously called `startDirect()` with a zeroed synthetic route (geometry `null`, steps `[]`, provider `'test'`) and never pushed `LiveTripScreen` — the navigation engine started invisibly with no route. It now shares a `_prepareRoute()` helper with Directions: resolves the origin (GPS or location picker), primes the shared trip form, calculates the real Valhalla route (alternatives), then `startDirect()`s the selected route and pushes `AppRoutes.liveTrip`. No new engine, no second GPS stream — the existing `startDirect`/navigation engine/off-route/TTS machinery is reused unchanged | Done |
+| **Destination sheet: distance from you**: straight-line distance (`GeoMath.haversineKm`, re-computed per selection, never cached) shown when a current location exists — honest by construction, no distance line when location is off | Done |
+| **Destination sheet: Save to favorites**: full-width "Save to favorites" for `place` results → `favorites.save_place` (existing endpoint); guests get the standard sign-in gate instead | Done |
+| **Share honesty fix**: the destination-sheet share payload no longer emits a fabricated `"Route: Calculating…"` (nothing is being calculated at that point) — it now carries name, address and coordinates only, per the no-fake-data rule | Done |
+| **Map zoom controls**: zoom in/out buttons on the map tab (pinch/scroll still works); hidden while the search-results sheet is open so the controls never sit on top of the sheet and swallow its taps | Done |
+| **Maps-mode widget tests**: `maps_mode_test.dart` 5 → 9 (destination sheet shows distance + Save; guest Save → sign-in gate; Start Navigation resolves the real route and reaches the live-trip screen via a router-backed harness; zoom controls present and actionable) | Done |
+| Verification: `flutter analyze` 0 errors / 7 pre-existing infos (baseline parity), `flutter test` **78/78**, `dart format` clean, `flutter build apk --debug` ✓, `flutter build web` ✓, `deno check` clean on all 19 function dirs, `deno test --allow-env` **87/87** | Done |
+| Backend/QA context from the earlier Phase-4 gate: project `ginurkwywgqpcvzpfaop` ACTIVE_HEALTHY, all 20 functions deployed, `route-nav` provider=valhalla live-verified (148.4 km / 230 min, 31 maneuvers); configured QA APK installed on OnePlus CPH2375 (SHA256 `cb8ca2d0…7da8`) — launch/crash/perf snapshots passed; GPS/TTS/moving-navigation validation **BLOCKED BY ENVIRONMENT** (indoor device) | Partial |
+| Load test (3K target): **NOT run** — requires a controlled test on owned Supabase + Valhalla infra. Never claimed. Plan + acceptance criteria documented in `ROUTE2GO_PRODUCTION_COMPLETION_REPORT.md` | Deferred |
+
+---
+
+## Maps-mode completion prompt pass (2026-08-17)
+
+Checkpoint `1a5ab87` + the uncommitted maps-mode pass preserved; this pass
+implements the 10-item "Maps Mode Completion" master prompt additively (no
+rewrites, no Phase 5, no second GPS stream / engine / LocationMarker, no Google
+APIs, no fake data). All gates green.
+
+| Item | Status |
+|---|---|
+| **FEATURE 1+2 — SearchResult category + city enrichment**: `/search` now returns `category`/`city` on every result kind: DB places → their real place-category name; hotels → `Hotel` + the DB `city`; Photon geocodes → `osm_value`/`type` + the first `city/town/village/state/country` property; Overpass POIs → their OSM category + `addr:city` when tagged. New pure helpers `photonCategory`/`photonCity` (geocodingProvider.ts) + `PoiResult.city` (poiProvider.ts). Never fabricated: absent when the provider returned nothing | Done, deployed-ready, deno 91/91 |
+| **Destination sheet shows category · city**: rendered between title/subtitle and coordinates as `Cafe · Bengaluru`; `Place · <city>` is the honest fallback for an unknown category (never a made-up label) | Done |
+| **FEATURE 3 — Compass**: map rotation enabled (`InteractiveFlag.all`); needle tracks the real camera bearing via `mapController.mapEventStream` + `camera.rotation`; tap → `moveAndRotate(center, zoom, 0)` (north-up); recenter also re-orients north | Done |
+| **FEATURE 4 — Layer switcher**: `Route2GoTileLayer` gained `styleMode` (`styled` = styled-first with auto OSM fallback, `standard` = OSM always, `null` = historical auto); map-tab layers button toggles Standard/Styled, persisted locally (`PreferencesStore.map_style`, default `styled`); attribution + OSM fallback always preserved; `MapTileConfig` gained injectable `styledTileProviderFactory` so tests run fully offline | Done |
+| **FEATURE 5 — Route share**: destination-sheet share stays place+coords (no route exists there — never fabricates "Calculating…"); the route-results screen (a real route always exists) gained an AppBar share action emitting route info + both coordinates; saved-trip share now includes distance + duration. Pure `buildDestinationShareText`/`buildRouteShareText` helpers, unit-tested. **No `route2go://` deeplink**: the app has no URL-scheme config, so a non-functional link is never emitted | Done |
+| **FEATURE 6 — Inline route preview**: SKIPPED and documented — the destination sheet is opened before any route calculation, so there is no route to preview; adding one would either fabricate a preview or force an expensive Valhalla call on selection. Directions/Start Navigation already surface the real calculated route | Done (skip, documented) |
+| **FEATURE 7 — Current-location UX**: already one-shot by design — `_useMyLocation` fetches the last-known position once, moves the camera; tapping again with a known position recenters immediately (no second GPS stream, no continuous subscription) | Done |
+| **FEATURE 8 — Recent searches**: `PreferencesStore` gained `recent_searches` (most-recent-first, case-insensitive dedupe, capped 10, local device only); the map-tab search records each completed query and shows a "Recent searches" sheet when the (interacted) field is empty; tapping a recent re-runs it | Done |
+| **FEATURE 9 — Performance targets documented**: `docs/PERFORMANCE_TARGETS.md` (map first frame <1 s, search p50 <400 ms, route p95 <2 s) — stated as targets, never as claims | Done |
+| **FEATURE 10 — Load-test plan**: `LOAD_TEST_PLAN.md` (root) — k6 scenarios, Valhalla scaling + LB, latency p50/p95/p99 + error-rate thresholds, capacity planning, node-kill recovery, where results are recorded; the 3K concurrency claim stays UNCLAIMED until a controlled run | Done |
+| **Tests**: Flutter **91/91** (+13: category·city, Place fallback, compass, layer switch + persistence, recent searches ×2, route-results share action, share-payload unit tests); Deno **91/91** (+4: photon category/city, mapPhotonFeatures carries enrichment, Overpass `addr:city`) | Done |
+| **Accessibility**: compass/layer/zoom/search all ≥44×44 `IconButton`s with tooltips; map surface still has no OS semantics tree (flutter_map limitation, documented in the completion report) | Done |
+| Verification: `flutter analyze lib test` 0 errors / 7 pre-existing infos (baseline parity, **no new lints**), `flutter test` **91/91**, `dart format` clean, `flutter build apk --debug` ✓, `flutter build web` ✓, `deno check` clean on all 19 function dirs, `deno test --allow-env` **91/91** | Done |
+| Load test (3K target): still **NOT run** — requires owned-infra controlled test; `LOAD_TEST_PLAN.md` now specifies the procedure and acceptance criteria | Deferred |

@@ -188,7 +188,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         r.lat != null &&
         r.lng != null) {
       return IconButton(
-        tooltip: 'Navigate to ${_labelFor(r.kind == 'nearby' ? 'nearby' : 'place').toLowerCase()}',
+        tooltip:
+            'Navigate to ${_labelFor(r.kind == 'nearby' ? 'nearby' : 'place').toLowerCase()}',
         icon: const Icon(Icons.navigation, color: AppColors.primary),
         onPressed: () => _getDirections(r, context),
         visualDensity: VisualDensity.compact,

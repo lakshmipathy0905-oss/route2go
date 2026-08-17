@@ -26,6 +26,8 @@ class SearchResult {
     required this.subtitle,
     this.lat,
     this.lng,
+    this.category,
+    this.city,
   });
 
   final String kind;
@@ -35,6 +37,12 @@ class SearchResult {
   final double? lat;
   final double? lng;
 
+  /// Optional category/city enrichment from the server (Photon/Overpass or the
+  /// DB). Absent when the server had nothing usable — never fabricated. The
+  /// destination sheet renders these as e.g. "Cafe · Bengaluru".
+  final String? category;
+  final String? city;
+
   factory SearchResult.fromJson(Map<String, dynamic> json) {
     return SearchResult(
       kind: json['kind'] as String,
@@ -43,6 +51,8 @@ class SearchResult {
       subtitle: json['subtitle'] as String? ?? '',
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
+      category: json['category'] as String?,
+      city: json['city'] as String?,
     );
   }
 }

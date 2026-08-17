@@ -11,6 +11,8 @@ export interface PoiResult {
   lat: number;
   lng: number;
   tags: Record<string, string>;
+  // Optional city from the element's addr:city tag when the OSM data has one.
+  city?: string;
 }
 
 export interface PoiSearchParams {
@@ -169,7 +171,17 @@ export function parseOverpassResponse(data: unknown): PoiResult[] {
       tags.aeroway ||
       tags.railway;
     if (!category) continue; // no recognisable POI category -> not a POI
-    out.push({ name, category, lat: lat as number, lng: lng as number, tags });
+    const addrCity = typeof tags["addr:city"] === "string"
+      ? tags["addr:city"].trim()
+      : "";
+    out.push({
+      name,
+      category,
+      lat: lat as number,
+      lng: lng as number,
+      tags,
+      city: addrCity.length > 0 ? addrCity : undefined,
+    });
   }
   return out;
 }
@@ -310,6 +322,7 @@ class MockPoiProvider implements PoiProvider {
         category,
         lat: params.lat + 0.003,
         lng: params.lng + 0.003,
+        city: "Bengaluru",
         tags: { name: `Test ${category}`, [`${tags[0].key}`]: category },
       },
       {
@@ -317,6 +330,7 @@ class MockPoiProvider implements PoiProvider {
         category,
         lat: params.lat - 0.003,
         lng: params.lng - 0.004,
+        city: "Bengaluru",
         tags: { name: `Another ${category}`, [`${tags[0].key}`]: category },
       },
     ];

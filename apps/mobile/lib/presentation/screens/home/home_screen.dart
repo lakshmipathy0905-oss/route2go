@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +9,12 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/config/map_tile_config.dart';
+import '../../../core/local/preferences_store.dart';
+import '../../../core/navigation/geo_math.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
 import '../../../data/repositories/geocoding_repository.dart';
+import '../../../data/repositories/favorites_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/trips_provider.dart';
 import '../../providers/vehicle_provider.dart';
@@ -336,9 +340,50 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
   Timer? _searchDebounce;
   int _searchRequestId = 0;
 
+  // Compass rotation (degrees, clockwise from north). Tracks the flutter_map
+  // camera so the needle always reflects the map's actual bearing.
+  double _rotationDeg = 0;
+  StreamSubscription<MapEvent>? _mapEvents;
+
+  // Layer switcher state, persisted locally ('standard' | 'styled').
+  String _mapStyle = 'styled';
+
+  // Recent searches, local only (capped at 10 in the preferences store).
+  List<String> _recentSearches = const [];
+  final TextEditingController _searchController = TextEditingController();
+  bool _searchInteracted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapEvents = _mapController.mapEventStream.listen((event) {
+      if (!mounted) return;
+      final rotation = _mapController.camera.rotation;
+      if ((rotation - _rotationDeg).abs() > 0.01) {
+        setState(() => _rotationDeg = rotation);
+      }
+    });
+    _loadLocalState();
+  }
+
+  Future<void> _loadLocalState() async {
+    try {
+      final store = await ref.read(preferencesStoreProvider.future);
+      if (!mounted) return;
+      setState(() {
+        _mapStyle = store.getMapStyle();
+        _recentSearches = store.getRecentSearches();
+      });
+    } catch (_) {
+      // Local prefs unavailable — fall back to defaults, never block the map.
+    }
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _mapEvents?.cancel();
+    _searchController.dispose();
     _mapController.dispose();
     super.dispose();
   }
@@ -392,6 +437,15 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     final trips = widget.trips;
     if (!_fitted) _fit();
 
+    // The local recent-searches sheet is a top-anchored overlay; while it is
+    // visible the top-right controls (compass, layer switcher) would overlap
+    // it, so they are hidden — same pattern as the zoom controls + results
+    // sheet at the bottom.
+    final recentSheetVisible = _searchInteracted &&
+        _searchController.text.trim().isEmpty &&
+        _recentSearches.isNotEmpty &&
+        !_showSearchResults;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: Stack(
@@ -402,12 +456,14 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
               options: const MapOptions(
                 initialCenter: LatLng(20.0, 78.0),
                 initialZoom: 5,
+                // Rotation is enabled so the compass has a real bearing to
+                // track; tapping the compass returns to north-up.
                 interactionOptions: InteractionOptions(
-                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  flags: InteractiveFlag.all,
                 ),
               ),
               children: [
-                const Route2GoTileLayer(),
+                Route2GoTileLayer(styleMode: _mapStyle),
                 if (trips.isNotEmpty)
                   PolylineLayer(
                     polylines: [
@@ -477,11 +533,25 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
             left: AppSpacing.md,
             right: AppSpacing.md,
             child: _MapSearchBar(
+              controller: _searchController,
               onSearch: _onSearch,
+              onTap: () => setState(() => _searchInteracted = true),
               onLocationPressed: _useMyLocation,
               isLocating: _locating,
             ),
           ),
+          // Recent searches appear when the search field is empty and the user
+          // has interacted with it (local-only history, capped at 10).
+          if (recentSheetVisible)
+            Positioned(
+              top: 72,
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              child: _RecentSearchesSheet(
+                searches: _recentSearches,
+                onSelect: _runRecentSearch,
+              ),
+            ),
           // Search results sheet (bottom)
           if (_showSearchResults)
             Positioned(
@@ -520,6 +590,60 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
               label: const Text('Use my current location'),
             ),
           ),
+          // Map zoom controls (pinch/scroll zoom still works; buttons help
+          // discoverability + accessibility). Hidden while the inline search
+          // results sheet is open — the sheet spans the bottom of the stack,
+          // and the controls would sit on top of it and swallow taps.
+          if (!_showSearchResults)
+            Positioned(
+              right: AppSpacing.md,
+              bottom: 76,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _MapZoomButton(
+                    tooltip: 'Zoom in',
+                    icon: Icons.add,
+                    onPressed: () => _mapController.move(
+                      _mapController.camera.center,
+                      (_mapController.camera.zoom + 1).clamp(2.0, 18.0),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  _MapZoomButton(
+                    tooltip: 'Zoom out',
+                    icon: Icons.remove,
+                    onPressed: () => _mapController.move(
+                      _mapController.camera.center,
+                      (_mapController.camera.zoom - 1).clamp(2.0, 18.0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Compass (top-right): the needle tracks the map's bearing; tapping
+          // it returns to north-up. Hidden while the recent-searches sheet is
+          // open so the sheet's taps are never swallowed.
+          if (!recentSheetVisible)
+            Positioned(
+              top: 72,
+              right: AppSpacing.md,
+              child: _MapCompassButton(
+                rotationDeg: _rotationDeg,
+                onPressed: _resetNorth,
+              ),
+            ),
+          // Layer switcher (top-right, under the compass): toggles between the
+          // styled provider and standard OSM, persisted locally.
+          if (!recentSheetVisible)
+            Positioned(
+              top: 124,
+              right: AppSpacing.md,
+              child: _MapStyleButton(
+                style: _mapStyle,
+                onPressed: _toggleMapStyle,
+              ),
+            ),
         ],
       ),
     );
@@ -565,8 +689,55 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
 
   void _recenter() {
     if (_currentLocation != null) {
-      _mapController.move(_currentLocation!, 14);
+      // Recenter keeps the north-up reset too, so a tilted map returns to a
+      // normal orientation when the user asks for their location.
+      _mapController.moveAndRotate(_currentLocation!, 14, 0);
     }
+  }
+
+  void _resetNorth() {
+    _mapController.moveAndRotate(
+      _mapController.camera.center,
+      _mapController.camera.zoom,
+      0,
+    );
+  }
+
+  Future<void> _toggleMapStyle() async {
+    final next = _mapStyle == 'styled' ? 'standard' : 'styled';
+    setState(() => _mapStyle = next);
+    try {
+      final store = await ref.read(preferencesStoreProvider.future);
+      await store.saveMapStyle(next);
+    } catch (_) {
+      // Persistence is best-effort; the in-session choice still applies.
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(next == 'styled' ? 'Styled map' : 'Standard map'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  Future<void> _recordRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.length < 2) return;
+    try {
+      final store = await ref.read(preferencesStoreProvider.future);
+      await store.upsertRecentSearch(trimmed);
+      if (!mounted) return;
+      setState(() => _recentSearches = store.getRecentSearches());
+    } catch (_) {
+      // Local history is best-effort; never blocks a search.
+    }
+  }
+
+  void _runRecentSearch(String query) {
+    _searchController.text = query;
+    setState(() => _searchInteracted = true);
+    _onSearch(query);
   }
 
   void _onSearch(String query) {
@@ -590,6 +761,10 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     // Monotonic token: if a newer query started while this one was in flight,
     // this response is stale and must not overwrite the newer results.
     final requestId = ++_searchRequestId;
+
+    // Remember the query locally (most-recent-first, capped at 10) so the next
+    // empty-query search can offer it as a recent. Best-effort.
+    unawaited(_recordRecentSearch(query));
 
     // Ensure the provider is initialized before mutating it. Otherwise the
     // async build() can complete after search() and clobber the fresh state.
@@ -623,15 +798,52 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
       isScrollControlled: true,
       builder: (context) => _DestinationSheet(
         result: result,
+        distanceKm: _distanceTo(result),
         onDirections: () => _getDirections(result),
         onStartNavigation: () => _startNavigation(result),
         onShare: () => _shareRoute(result),
+        onSave: result.kind == 'place' ? () => _savePlace(result) : null,
       ),
     );
   }
 
-  Future<void> _getDirections(SearchResult result) async {
-    if (result.lat == null || result.lng == null) return;
+  /// Straight-line distance from the last-known position on this map, or null
+  /// when the user has not granted location. Honest by construction: no
+  /// fabricated distance, and it is re-computed (never cached) per selection.
+  double? _distanceTo(SearchResult result) {
+    final here = _currentLocation;
+    if (here == null || result.lat == null || result.lng == null) return null;
+    return GeoMath.haversineKm(here, LatLng(result.lat!, result.lng!));
+  }
+
+  Future<void> _savePlace(SearchResult result) async {
+    if (!ref.read(isLoggedInProvider)) {
+      showGuestGate(context);
+      return;
+    }
+    try {
+      await ref.read(favoritesRepositoryProvider).savePlace(result.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${result.title} saved to favorites.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Could not save to favorites. Try again later.')),
+      );
+    }
+  }
+
+  /// Shared route preparation for the Directions and Start Navigation flows:
+  /// resolves the origin (current GPS or the location picker), primes the
+  /// shared trip form and calculates the real Valhalla route (alternatives
+  /// included). Returns the selected route, its destination and the origin
+  /// label, or null when the user cancels / no route is available.
+  Future<({RouteOption route, NavStop destination, String originLabel})?>
+      _prepareRoute(SearchResult result) async {
+    if (result.lat == null || result.lng == null) return null;
 
     final repo = ref.read(geocodingRepositoryProvider);
     final navigator = GoRouter.of(context);
@@ -653,12 +865,12 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
         onRequest: () {},
       );
       await explainer.showModal(context);
-      if (!context.mounted) return;
+      if (!context.mounted) return null;
       final picked = await navigator.push<GeoPlace>(
         AppRoutes.locationPicker,
         extra: 'origin',
       );
-      if (picked == null || !context.mounted) return;
+      if (picked == null || !context.mounted) return null;
       origin = NavStop(label: picked.label, lat: picked.lat, lng: picked.lng);
     }
 
@@ -688,7 +900,7 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     );
     ref.read(tripCalculationProvider.notifier).calculate();
     final calc = await ref.read(tripCalculationProvider.future);
-    if (!mounted) return;
+    if (!mounted) return null;
     Navigator.of(context).pop();
 
     if (calc == null || calc.routes.isEmpty) {
@@ -696,52 +908,49 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
         const SnackBar(
             content: Text('No route available for this destination.')),
       );
-      return;
+      return null;
     }
 
     ref.read(selectedRouteTypeProvider.notifier).state = 'recommended';
-    if (context.mounted) context.push(AppRoutes.routeResults);
+    final route = selectRoute(calc, ref.read(selectedRouteTypeProvider));
+    if (route == null) return null;
+    return (route: route, destination: destination, originLabel: origin.label);
   }
 
-  void _startNavigation(SearchResult result) {
-    if (result.lat == null || result.lng == null) return;
+  Future<void> _getDirections(SearchResult result) async {
+    final prepared = await _prepareRoute(result);
+    if (prepared == null || !mounted) return;
+    context.push(AppRoutes.routeResults);
+  }
 
-    final destination = NavStop(
-      label: result.title,
-      lat: result.lat!,
-      lng: result.lng!,
-    );
+  Future<void> _startNavigation(SearchResult result) async {
+    final prepared = await _prepareRoute(result);
+    if (prepared == null || !mounted) return;
 
-    // Use the existing direct-navigation architecture
-    final liveProvider = ref.read(liveTripProvider.notifier);
-    liveProvider.startDirect(
-      originLabel: 'Current location',
-      destination: destination,
-      route: RouteOption(
-        routeType: 'recommended',
-        distanceKm: 0,
-        durationMin: 0,
-        fuelCost: null,
-        fuelCostConfidence: 'unavailable',
-        tollCost: 0,
-        tollConfidence: 'unavailable',
-        totalCost: 0,
-        provider: 'test',
-        fetchedAt: DateTime.now(),
-        geometry: null,
-        steps: const [],
-      ),
+    // Use the existing direct-navigation architecture with the real route.
+    await ref.read(liveTripProvider.notifier).startDirect(
+      originLabel: prepared.originLabel,
+      destination: prepared.destination,
+      route: prepared.route,
       waypoints: const [],
     );
+
+    if (mounted) context.push(AppRoutes.liveTrip);
   }
 
   void _shareRoute(SearchResult result) {
-    if (result.lat == null || result.lng == null) return;
-
-    final payload =
-        'Location: ${result.lat!.toStringAsFixed(6)}, ${result.lng!.toStringAsFixed(6)}\n'
-        'Destination: ${result.title}\n'
-        'Route: Calculating...';
+    // Honest by construction: the destination sheet is shared before any route
+    // is calculated, so the payload carries the place (with its real
+    // category/city when the server provided them) + coordinates only — never
+    // a fabricated "Calculating..." or a route that does not exist yet.
+    final payload = buildDestinationShareText(
+      title: result.title,
+      subtitle: result.subtitle,
+      category: result.category,
+      city: result.city,
+      lat: result.lat,
+      lng: result.lng,
+    );
 
     SharePlus.instance.share(ShareParams(text: payload));
   }
@@ -1001,15 +1210,153 @@ class _PlanTripCta extends StatelessWidget {
   }
 }
 
+/// Maps-style circular zoom button (in/out) for the map tab.
+class _MapZoomButton extends StatelessWidget {
+  const _MapZoomButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: tooltip,
+        icon: Icon(icon, size: 20),
+        onPressed: onPressed,
+      ),
+    );
+  }
+}
+
+/// Maps-style compass. The needle is rotated by the camera's real bearing
+/// (rotation degrees, clockwise from north); tapping resets to north-up.
+class _MapCompassButton extends StatelessWidget {
+  const _MapCompassButton({
+    required this.rotationDeg,
+    required this.onPressed,
+  });
+
+  final double rotationDeg;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: 'Reset map north',
+        onPressed: onPressed,
+        icon: Transform.rotate(
+          angle: -rotationDeg * math.pi / 180,
+          child:
+              const Icon(Icons.navigation, size: 20, color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+}
+
+/// Layer switcher button: toggles between the styled provider and standard
+/// OSM. The current style is shown on the button so the mode is always known.
+class _MapStyleButton extends StatelessWidget {
+  const _MapStyleButton({required this.style, required this.onPressed});
+
+  final String style;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final styled = style == 'styled';
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: styled ? 'Map style: Styled' : 'Map style: Standard',
+        onPressed: onPressed,
+        icon: Icon(
+          Icons.layers,
+          size: 20,
+          color: styled ? AppColors.primary : AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Local recent-searches sheet shown under the search bar when the query is
+/// empty (device-only history, capped at 10, never uploaded).
+class _RecentSearchesSheet extends StatelessWidget {
+  const _RecentSearchesSheet({
+    required this.searches,
+    required this.onSelect,
+  });
+
+  final List<String> searches;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      clipBehavior: Clip.antiAlias,
+      elevation: 4,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xs),
+            child: Row(
+              children: [
+                Text('Recent searches',
+                    style: Theme.of(context).textTheme.titleSmall),
+                const Spacer(),
+                const Icon(Icons.history,
+                    size: 16, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+          ...searches.take(6).map(
+                (s) => ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.history,
+                      size: 18, color: AppColors.textSecondary),
+                  title: Text(s, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onTap: () => onSelect(s),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Maps-style search bar at the top of the map
 class _MapSearchBar extends StatelessWidget {
   const _MapSearchBar({
+    required this.controller,
     required this.onSearch,
+    required this.onTap,
     required this.onLocationPressed,
     required this.isLocating,
   });
 
+  final TextEditingController controller;
   final ValueChanged<String> onSearch;
+  final VoidCallback onTap;
   final VoidCallback onLocationPressed;
   final bool isLocating;
 
@@ -1030,6 +1377,8 @@ class _MapSearchBar extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: TextField(
+                controller: controller,
+                onTap: onTap,
                 onChanged: onSearch,
                 decoration: const InputDecoration(
                   hintText: 'Search places, addresses, or POIs',
@@ -1145,19 +1494,23 @@ class _SearchResultsSheet extends StatelessWidget {
   }
 }
 
-/// Destination sheet with Directions / Start Navigation / Share
+/// Destination sheet with Directions / Start Navigation / Share / Save
 class _DestinationSheet extends ConsumerWidget {
   const _DestinationSheet({
     required this.result,
+    this.distanceKm,
     required this.onDirections,
     required this.onStartNavigation,
     required this.onShare,
+    this.onSave,
   });
 
   final SearchResult result;
+  final double? distanceKm;
   final VoidCallback onDirections;
   final VoidCallback onStartNavigation;
   final VoidCallback onShare;
+  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1198,11 +1551,35 @@ class _DestinationSheet extends ConsumerWidget {
                     result.subtitle,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
+                // Category · city line from the server's real enrichment
+                // (Photon/Overpass/DB). "Place" is the honest fallback for an
+                // unknown category — never a fabricated label.
+                if ((result.category?.trim().isNotEmpty ?? false) ||
+                    (result.city?.trim().isNotEmpty ?? false)) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${(result.category?.trim().isNotEmpty ?? false) ? result.category!.trim() : 'Place'}'
+                    '${(result.city?.trim().isNotEmpty ?? false) ? ' · ${result.city!.trim()}' : ''}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
                 if (result.lat != null && result.lng != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Location: ${result.lat!.toStringAsFixed(6)}, ${result.lng!.toStringAsFixed(6)}',
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (distanceKm != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '${formatDistance(distanceKm!)} from you',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.lg),
@@ -1232,6 +1609,17 @@ class _DestinationSheet extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (onSave != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onSave,
+                      icon: const Icon(Icons.favorite_outline),
+                      label: const Text('Save to favorites'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

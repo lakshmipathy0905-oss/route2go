@@ -337,7 +337,8 @@ void main() {
       );
 
       // No trip form / calculation is required: navigation starts directly.
-      expect(container.read(navigationProvider).status, NavigationStatus.starting);
+      expect(
+          container.read(navigationProvider).status, NavigationStatus.starting);
       expect(container.read(navigationProvider).destination!.label, 'Kahale');
       expect(container.read(navigationProvider).route, same(route));
 

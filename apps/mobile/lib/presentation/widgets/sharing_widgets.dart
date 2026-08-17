@@ -18,6 +18,71 @@ String formatDuration(int minutes) {
   return '${h}h ${m}m';
 }
 
+/// Share text for a map-tab destination when no route has been calculated yet.
+/// Honest by construction: the place (with category/city when known) and its
+/// coordinates only — never a fabricated "Calculating..." or a route that does
+/// not exist. Pure so it can be unit-tested without the platform share sheet.
+String buildDestinationShareText({
+  required String title,
+  String? subtitle,
+  String? category,
+  String? city,
+  double? lat,
+  double? lng,
+}) {
+  final lines = <String>[title];
+  final categoryLabel = category?.trim() ?? '';
+  final cityLabel = city?.trim() ?? '';
+  if (categoryLabel.isNotEmpty || cityLabel.isNotEmpty) {
+    // Mirrors the destination sheet: "Place · City" is the honest fallback
+    // when the category is unknown.
+    lines.add(categoryLabel.isNotEmpty
+        ? (cityLabel.isNotEmpty ? '$categoryLabel · $cityLabel' : categoryLabel)
+        : 'Place · $cityLabel');
+  }
+  final sub = subtitle?.trim() ?? '';
+  if (sub.isNotEmpty) lines.add(sub);
+  if (lat != null && lng != null) {
+    lines.add('Location: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}');
+  }
+  return lines.join('\n');
+}
+
+/// Share text for an existing calculated route (e.g. the route-results screen
+/// or a saved trip): real route info + both coordinates so a recipient can
+/// open the same places. Route2Go has no deep-link URL scheme configured, so a
+/// route2go:// link would be non-functional and is never emitted. Pure.
+String buildRouteShareText({
+  required String originLabel,
+  required String destinationLabel,
+  required String routeLabel,
+  required double distanceKm,
+  required int durationMin,
+  double? totalCost,
+  double? originLat,
+  double? originLng,
+  double? destinationLat,
+  double? destinationLng,
+}) {
+  final lines = <String>['Route2Go route'];
+  lines.add('$originLabel → $destinationLabel');
+  lines.add(
+      '$routeLabel · ${formatDistance(distanceKm)} · ${formatDuration(durationMin)}');
+  if (totalCost != null && totalCost > 0) {
+    lines.add('Est. total: ${formatCurrency(totalCost)}');
+  }
+  if (originLat != null &&
+      originLng != null &&
+      destinationLat != null &&
+      destinationLng != null) {
+    lines.add(
+        'Origin: ${originLat.toStringAsFixed(6)}, ${originLng.toStringAsFixed(6)}');
+    lines.add(
+        'Destination: ${destinationLat.toStringAsFixed(6)}, ${destinationLng.toStringAsFixed(6)}');
+  }
+  return lines.join('\n');
+}
+
 /// Star rating display (place/hotel cards). Always paired with the numeric
 /// rating so status/quality is never conveyed by color or stars alone.
 class StarRating extends StatelessWidget {

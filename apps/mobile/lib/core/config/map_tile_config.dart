@@ -23,7 +23,9 @@ class MapTileConfig {
     this.styledUrlTemplate,
     this.styledAttribution = defaultAttribution,
     TileProvider Function()? tileProviderFactory,
-  }) : _tileProviderFactory = tileProviderFactory;
+    TileProvider Function()? styledTileProviderFactory,
+  })  : _tileProviderFactory = tileProviderFactory,
+        _styledTileProviderFactory = styledTileProviderFactory;
 
   /// Fallback / default tiles (OSM unless overridden).
   final String urlTemplate;
@@ -40,6 +42,7 @@ class MapTileConfig {
 
   final String userAgentPackageName;
   final TileProvider Function()? _tileProviderFactory;
+  final TileProvider Function()? _styledTileProviderFactory;
 
   static const String defaultAttribution =
       'Map data © OpenStreetMap contributors';
@@ -72,8 +75,10 @@ class MapTileConfig {
 
   /// A fresh [TileProvider] for the styled layer. Keyed providers (Stadia,
   /// MapTiler, …) embed their key in the URL template or as a query param, so
-  /// the standard network provider is sufficient.
-  TileProvider buildStyledTileProvider() => NetworkTileProvider();
+  /// the standard network provider is sufficient; tests override it with an
+  /// offline provider.
+  TileProvider buildStyledTileProvider() =>
+      _styledTileProviderFactory?.call() ?? NetworkTileProvider();
 }
 
 /// A [TileLayer] that uses the optional styled tile provider first and falls
@@ -81,7 +86,13 @@ class MapTileConfig {
 /// network). Without a styled provider configured it is simply the default
 /// layer, so existing behaviour is unchanged.
 class Route2GoTileLayer extends ConsumerStatefulWidget {
-  const Route2GoTileLayer({super.key});
+  const Route2GoTileLayer({super.key, this.styleMode});
+
+  /// 'styled' → styled provider first with automatic OSM fallback on error.
+  /// 'standard' → always the default OSM tiles. null → the historical default
+  /// (styled first when configured, OSM fallback). The map tab's layer
+  /// switcher drives this; other screens leave it null.
+  final String? styleMode;
 
   @override
   ConsumerState<Route2GoTileLayer> createState() => _Route2GoTileLayerState();
@@ -93,7 +104,9 @@ class _Route2GoTileLayerState extends ConsumerState<Route2GoTileLayer> {
   @override
   Widget build(BuildContext context) {
     final tileConfig = ref.watch(mapTileConfigProvider);
-    final useStyled = tileConfig.styledUrlTemplate != null && !_styledFailed;
+    final useStyled = widget.styleMode == 'standard'
+        ? false
+        : tileConfig.styledUrlTemplate != null && !_styledFailed;
     return TileLayer(
       urlTemplate:
           useStyled ? tileConfig.styledUrlTemplate! : tileConfig.urlTemplate,

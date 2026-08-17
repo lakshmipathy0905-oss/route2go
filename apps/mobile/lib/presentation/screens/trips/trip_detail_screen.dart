@@ -206,6 +206,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final text = 'Route2Go trip summary\n\n'
         '${trip.originLabel} → ${trip.destinationLabel}\n'
         '${trip.tripType == 'round_trip' ? 'Round trip' : 'One-way'} · ${trip.travellers} traveller(s)\n'
+        '${trip.bestDistanceKm != null && trip.bestDurationMin != null ? '${formatDistance(trip.bestDistanceKm!)} · ${formatDuration(trip.bestDurationMin!)}\n' : ''}'
         '${trip.bestRouteCost != null ? 'Est. total: ${formatCurrency(trip.bestRouteCost!)}\n' : ''}'
         '${trip.budgetTotal != null ? 'Budget: ${formatCurrency(trip.budgetTotal!)}\n' : ''}'
         '\nPlanned with Route2Go.';

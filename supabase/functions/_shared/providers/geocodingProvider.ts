@@ -15,6 +15,11 @@ export interface GeocodedPlace {
   lat: number;
   lng: number;
   subtitle?: string;
+  // Optional category/city derived from the provider's own fields so the map
+  // destination sheet can show e.g. "Cafe · Bengaluru". Never fabricated:
+  // absent when the provider returned nothing usable.
+  category?: string;
+  city?: string;
 }
 
 const HTTP_TIMEOUT_MS = 6_000;
@@ -74,16 +79,16 @@ export interface GeocodingProvider {
 
 class MockGeocodingProvider implements GeocodingProvider {
   private static known = [
-    { label: "Bengaluru", lat: 12.9716, lng: 77.5946, subtitle: "Karnataka" },
-    { label: "Mysuru", lat: 12.2958, lng: 76.6394, subtitle: "Karnataka" },
-    { label: "Chennai", lat: 13.0827, lng: 80.2707, subtitle: "Tamil Nadu" },
-    { label: "Hyderabad", lat: 17.3850, lng: 78.4867, subtitle: "Telangana" },
-    { label: "Mumbai", lat: 19.0760, lng: 72.8777, subtitle: "Maharashtra" },
-    { label: "Pune", lat: 18.5204, lng: 73.8567, subtitle: "Maharashtra" },
-    { label: "Coorg", lat: 12.3375, lng: 75.8069, subtitle: "Karnataka" },
-    { label: "Ooty", lat: 11.4064, lng: 76.6932, subtitle: "Tamil Nadu" },
-    { label: "Kodaikanal", lat: 10.2381, lng: 77.4892, subtitle: "Tamil Nadu" },
-    { label: "Goa", lat: 15.2993, lng: 74.1240, subtitle: "Goa" },
+    { label: "Bengaluru", lat: 12.9716, lng: 77.5946, subtitle: "Karnataka", category: "city", city: "Bengaluru" },
+    { label: "Mysuru", lat: 12.2958, lng: 76.6394, subtitle: "Karnataka", category: "city", city: "Mysuru" },
+    { label: "Chennai", lat: 13.0827, lng: 80.2707, subtitle: "Tamil Nadu", category: "city", city: "Chennai" },
+    { label: "Hyderabad", lat: 17.3850, lng: 78.4867, subtitle: "Telangana", category: "city", city: "Hyderabad" },
+    { label: "Mumbai", lat: 19.0760, lng: 72.8777, subtitle: "Maharashtra", category: "city", city: "Mumbai" },
+    { label: "Pune", lat: 18.5204, lng: 73.8567, subtitle: "Maharashtra", category: "city", city: "Pune" },
+    { label: "Coorg", lat: 12.3375, lng: 75.8069, subtitle: "Karnataka", category: "town", city: "Coorg" },
+    { label: "Ooty", lat: 11.4064, lng: 76.6932, subtitle: "Tamil Nadu", category: "town", city: "Ooty" },
+    { label: "Kodaikanal", lat: 10.2381, lng: 77.4892, subtitle: "Tamil Nadu", category: "town", city: "Kodaikanal" },
+    { label: "Goa", lat: 15.2993, lng: 74.1240, subtitle: "Goa", category: "town", city: "Goa" },
   ];
 
   async forward(query: string): Promise<GeocodedPlace[]> {
@@ -130,6 +135,31 @@ export function photonLabel(props: Record<string, unknown>): string {
   return parts.length > 0 ? parts.join(", ") : named;
 }
 
+// Map a Photon feature's properties to a human category. Photon exposes the
+// OSM tag value (`osm_value`: "restaurant", "cafe", "city", ...) and a place
+// `type`; we prefer the OSM value and normalize underscores. Absent when the
+// provider returned nothing usable — never fabricated.
+export function photonCategory(props: Record<string, unknown>): string | undefined {
+  const raw = typeof props.osm_value === "string" && props.osm_value.trim().length > 0
+    ? props.osm_value
+    : typeof props.type === "string" && props.type.trim().length > 0
+      ? props.type
+      : "";
+  const clean = raw.replaceAll("_", " ").trim();
+  return clean.length > 0 ? clean : undefined;
+}
+
+// Map a Photon feature's properties to a city/locality. Photon nestles the
+// city, town, village or state into specific properties depending on the
+// feature type; we pick the first non-empty one. Absent when none exists.
+export function photonCity(props: Record<string, unknown>): string | undefined {
+  for (const key of ["city", "locality", "town", "village", "state", "country"]) {
+    const v = typeof props[key] === "string" ? props[key].trim() : "";
+    if (v.length > 0) return v;
+  }
+  return undefined;
+}
+
 // Map a Photon /api response body to Route2Go places. Pure and unit-testable.
 export function mapPhotonFeatures(
   features: unknown,
@@ -155,6 +185,8 @@ export function mapPhotonFeatures(
         subtitle: typeof props.osm_value === "string"
           ? props.osm_value
           : undefined,
+        category: photonCategory(props),
+        city: photonCity(props),
       } as GeocodedPlace;
     })
     .filter((p): p is GeocodedPlace => p !== null);

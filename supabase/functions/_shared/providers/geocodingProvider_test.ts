@@ -6,6 +6,8 @@ import {
   type GeocodedPlace,
   getGeocodingProvider,
   mapPhotonFeatures,
+  photonCategory,
+  photonCity,
   photonLabel,
   resolvePhotonQuery,
 } from "./geocodingProvider.ts";
@@ -61,6 +63,50 @@ Deno.test("mapPhotonFeatures maps features and drops malformed entries", () => {
 Deno.test("mapPhotonFeatures returns [] for non-array input", () => {
   assertEquals(mapPhotonFeatures(null, "x"), []);
   assertEquals(mapPhotonFeatures({}, "x"), []);
+});
+
+// --- category/city enrichment -------------------------------------------------
+
+Deno.test("photonCategory prefers osm_value and normalizes underscores", () => {
+  assertEquals(photonCategory({ osm_value: "restaurant" }), "restaurant");
+  assertEquals(photonCategory({ osm_value: "charging_station" }), "charging station");
+  assertEquals(photonCategory({ type: "city" }), "city");
+  assertEquals(photonCategory({ osm_value: "cafe", type: "node" }), "cafe");
+  assertEquals(photonCategory({}), undefined);
+});
+
+Deno.test("photonCity picks the first available locality property", () => {
+  assertEquals(
+    photonCity({ city: "Bengaluru", state: "Karnataka" }),
+    "Bengaluru",
+  );
+  assertEquals(photonCity({ village: "Ooty", city: "Udhagamandalam" }), "Udhagamandalam");
+  assertEquals(photonCity({ state: "Karnataka", country: "India" }), "Karnataka");
+  assertEquals(photonCity({}), undefined);
+});
+
+Deno.test("mapPhotonFeatures carries category and city through", () => {
+  const features = [
+    {
+      properties: {
+        name: "Cafe Coffee Day",
+        osm_key: "amenity",
+        osm_value: "cafe",
+        city: "Bengaluru",
+        state: "Karnataka",
+      },
+      geometry: { coordinates: [77.5946, 12.9716] },
+    },
+    {
+      properties: { name: "No extra data" },
+      geometry: { coordinates: [10.0, 20.0] },
+    },
+  ];
+  const places: GeocodedPlace[] = mapPhotonFeatures(features, "cafe");
+  assertEquals(places[0].category, "cafe");
+  assertEquals(places[0].city, "Bengaluru");
+  assertEquals(places[1].category, undefined);
+  assertEquals(places[1].city, undefined);
 });
 
 // --- near-phrase handling ---------------------------------------------------

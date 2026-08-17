@@ -66,6 +66,8 @@ Deno.serve(async (req: Request) => {
       subtitle: string | null;
       lat?: number;
       lng?: number;
+      category?: string;
+      city?: string;
     }
   > = [];
 
@@ -101,6 +103,7 @@ Deno.serve(async (req: Request) => {
           id: p.id,
           title: p.name,
           subtitle: cat?.name ?? null,
+          category: cat?.name ?? undefined,
         });
       }
     }
@@ -111,6 +114,8 @@ Deno.serve(async (req: Request) => {
           id: h.id,
           title: h.name,
           subtitle: h.city ?? null,
+          category: "Hotel",
+          city: h.city ?? undefined,
         });
       }
     }
@@ -157,6 +162,8 @@ Deno.serve(async (req: Request) => {
         subtitle: g.subtitle ?? "Place",
         lat: g.lat,
         lng: g.lng,
+        category: g.category,
+        city: g.city,
       });
     }
 
@@ -170,6 +177,8 @@ Deno.serve(async (req: Request) => {
           subtitle: p.category.replaceAll("_", " "),
           lat: p.lat,
           lng: p.lng,
+          category: p.category.replaceAll("_", " "),
+          city: p.city,
         });
       }
     }
