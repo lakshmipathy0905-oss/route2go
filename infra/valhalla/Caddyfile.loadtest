@@ -1,0 +1,13 @@
+{
+	admin off
+}
+
+:8302 {
+	reverse_proxy valhalla-1:8002 valhalla-2:8002 valhalla-3:8002 {
+		lb_policy round_robin
+		health_uri /status
+		health_interval 10s
+		health_timeout 3s
+		fail_duration 10s
+	}
+}

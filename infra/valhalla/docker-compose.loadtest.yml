@@ -1,0 +1,132 @@
+# Route2Go load-test Valhalla cluster: 3 Valhalla replicas behind a Caddy LB.
+# Use ONLY for load tests. The production single-node stack is docker-compose.yml.
+#
+#   export OSM_EXTRACT_URL=https://download.geofabrik.de/asia/india-latest.osm.pbf
+#   docker compose -f docker-compose.loadtest.yml up -d --build
+#
+# LB base URL (set as the edge functions' VALHALLA_BASE_URL):
+#   http://localhost:8302
+#
+# Direct per-node checks (curl http://localhost:<port>/status):
+#   valhalla-1 :8002  |  valhalla-2 :8102  |  valhalla-3 :8202
+#
+# Fewer nodes: comment out a valhalla-N service AND its backend line in
+# Caddyfile.loadtest. Each node builds its own tile set from the extract on
+# first start (CPU-heavy; budget time and disk per node).
+
+services:
+  valhalla-1:
+    build: .
+    container_name: route2go-valhalla-1
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      OSM_EXTRACT_URL: ${OSM_EXTRACT_URL:?set OSM_EXTRACT_URL to a Geofabrik .osm.pbf}
+      VALHALLA_CONCURRENCY: ${VALHALLA_CONCURRENCY:-1}
+    volumes:
+      - valhalla-data-1:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${VALHALLA_MEM_LIMIT:-4g}
+          cpus: ${VALHALLA_CPU_LIMIT:-4}
+        reservations:
+          memory: ${VALHALLA_MEM_RESERVE:-1g}
+          cpus: ${VALHALLA_CPU_RESERVE:-1}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  valhalla-2:
+    build: .
+    container_name: route2go-valhalla-2
+    restart: unless-stopped
+    ports:
+      - "8102:8002"
+    environment:
+      OSM_EXTRACT_URL: ${OSM_EXTRACT_URL:?set OSM_EXTRACT_URL to a Geofabrik .osm.pbf}
+      VALHALLA_CONCURRENCY: ${VALHALLA_CONCURRENCY:-1}
+    volumes:
+      - valhalla-data-2:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${VALHALLA_MEM_LIMIT:-4g}
+          cpus: ${VALHALLA_CPU_LIMIT:-4}
+        reservations:
+          memory: ${VALHALLA_MEM_RESERVE:-1g}
+          cpus: ${VALHALLA_CPU_RESERVE:-1}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  valhalla-3:
+    build: .
+    container_name: route2go-valhalla-3
+    restart: unless-stopped
+    ports:
+      - "8202:8002"
+    environment:
+      OSM_EXTRACT_URL: ${OSM_EXTRACT_URL:?set OSM_EXTRACT_URL to a Geofabrik .osm.pbf}
+      VALHALLA_CONCURRENCY: ${VALHALLA_CONCURRENCY:-1}
+    volumes:
+      - valhalla-data-3:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${VALHALLA_MEM_LIMIT:-4g}
+          cpus: ${VALHALLA_CPU_LIMIT:-4}
+        reservations:
+          memory: ${VALHALLA_MEM_RESERVE:-1g}
+          cpus: ${VALHALLA_CPU_RESERVE:-1}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: route2go-valhalla-lb
+    restart: unless-stopped
+    ports:
+      - "8302:8302"
+    volumes:
+      - ./Caddyfile.loadtest:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      valhalla-1:
+        condition: service_healthy
+      valhalla-2:
+        condition: service_healthy
+      valhalla-3:
+        condition: service_healthy
+
+volumes:
+  valhalla-data-1:
+  valhalla-data-2:
+  valhalla-data-3:
+  caddy-data:

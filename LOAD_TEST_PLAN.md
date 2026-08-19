@@ -39,6 +39,10 @@ Baseline realistic mix; each virtual user (VU) performs the happy path:
    the client (via the 300 ms debounce) never triples traffic.
 4. `calculate`: POST `/trip-calculate` BLR→Mysuru (the real 148.4 km route) —
    p95 target < 2 s.
+4b. `route`: POST `/route-nav` (fixed set: BLR→Mysuru, HYD→BLR, BOM→Pune,
+   MAA→BLR, BLR→MAA via Vellore) — p95 target < 2 s. `mix.js` splits sessions
+   search 90% / route 7% / calculate 3%, so ~10% of sessions are actively
+   routing.
 5. `read` endpoints: GET `/trip`, `/favorites`, `/feature-flags` — steady load.
 
 Suggested ramp (document every run's parameters):
@@ -67,6 +71,10 @@ Acceptance criteria (must all hold):
   balancer (e.g. Caddy/Nginx with active healthcheck on `GET /status`). The
   routing provider in `_shared/providers/valhalla.ts` hits
   `VALHALLA_BASE_URL`, so a LB base URL is the single config change.
+  Ready-made: `infra/valhalla/docker-compose.loadtest.yml` (3 replicas + Caddy
+  LB on `:8302`; node health on `:8002`/`:8102`/`:8202`) with
+  `infra/valhalla/Caddyfile.loadtest` (round-robin, `/status` healthcheck,
+  10 s fail_duration).
 - **Supabase**: plan an add-on (compute/memory) before the run; log the exact
   project tier in the results.
 - **Failover drill**: `kill -9` one Valhalla replica mid-run — assert
@@ -78,8 +86,9 @@ Acceptance criteria (must all hold):
 1. `cd infra/load/k6`; install k6 (`brew install k6` / k6 CLI).
 2. Set env: `K6_SUPABASE_URL`, `K6_SUPABASE_ANON_KEY`, `K6_VALHALLA_URL` (the LB
    base URL).
-3. `k6 run --vus <vus> --duration <d> scenarios/search.js` (and `calculate.js`,
-   `mix.js` for the combined scenario).
+3. `k6 run --vus <vus> --duration <d> scenarios/search.js` (and `route.js`,
+   `calculate.js`, `mix.js` for the combined scenario; `geocode.js` to verify
+   429 behavior).
 4. Record output CSV (`--out csv=results/<date>-<scenario>.csv`).
 
 ## 6. Reporting (required fields)
