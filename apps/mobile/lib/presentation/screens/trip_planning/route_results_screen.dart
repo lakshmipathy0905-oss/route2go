@@ -4,7 +4,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/booking_links.dart';
 import '../../../core/config/map_tile_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
@@ -172,6 +174,11 @@ class _RouteResultsScreenState extends ConsumerState<RouteResultsScreen> {
                     ref.read(itineraryProvider.notifier).generate();
                     context.push(AppRoutes.itinerary);
                   },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _TrainBusCard(
+                  fromLabel: ref.read(tripPlanningFormProvider).originLabel,
+                  toLabel: ref.read(tripPlanningFormProvider).destinationLabel,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _StartNavigationCta(
@@ -673,5 +680,72 @@ class _StartNavigationCta extends ConsumerWidget {
     );
 
     if (context.mounted) context.push(AppRoutes.liveTrip);
+  }
+}
+
+/// Train/bus booking links for the calculated route. Honest links only:
+/// they open the provider's own search in the browser. The bus button is
+/// enabled only when both real origin and destination labels exist.
+class _TrainBusCard extends StatelessWidget {
+  const _TrainBusCard({required this.fromLabel, required this.toLabel});
+
+  final String? fromLabel;
+  final String? toLabel;
+
+  Future<void> _open(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRoute = (fromLabel?.trim().isNotEmpty ?? false) &&
+        (toLabel?.trim().isNotEmpty ?? false);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Train & bus bookings',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: AppSpacing.xs),
+            const HintText(
+                'Opens the provider\'s site in your browser — Route2Go never '
+                'books or takes payment for trains or buses.'),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _open(context, BookingLinks.irctcTrain()),
+                    icon: const Icon(Icons.train, size: 18),
+                    label: const Text('Book train'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: hasRoute
+                        ? () => _open(
+                              context,
+                              BookingLinks.redBus(
+                                fromCity: fromLabel!.trim(),
+                                toCity: toLabel!.trim(),
+                              ),
+                            )
+                        : null,
+                    icon: const Icon(Icons.directions_bus, size: 18),
+                    label: const Text('Book bus'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

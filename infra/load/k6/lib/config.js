@@ -16,13 +16,23 @@ export const ROUTES = [
   { name: 'BLR->MAA_via_VLR', origin: { label: 'Bengaluru', lat: 12.9716, lng: 77.5946 }, destination: { label: 'Chennai', lat: 13.0827, lng: 80.2707 }, waypoints: [{ label: 'Vellore', lat: 12.9165, lng: 79.1325 }] },
 ];
 
-export function headers() {
-  if (!rawKey) {
-    throw new Error('K6_SUPABASE_ANON_KEY is required');
-  }
+// Public (guest-accessible) endpoints: use the literal 'Bearer guest' token.
+// The edge functions recognise this string and skip Firebase verification.
+export function guestHeaders() {
   return {
-    'apikey': rawKey,
-    'Authorization': `Bearer ${rawKey}`,
+    'apikey': rawKey || '',
+    'Authorization': 'Bearer guest',
+    'Content-Type': 'application/json',
+  };
+}
+
+// Auth-required endpoints: use the Firebase ID token when available,
+// otherwise fall back to anon key (which will correctly 401 in the test).
+export function headers() {
+  const firebaseToken = __ENV.K6_FIREBASE_TOKEN || '';
+  return {
+    'apikey': rawKey || '',
+    'Authorization': firebaseToken ? `Bearer ${firebaseToken}` : `Bearer ${rawKey}`,
     'Content-Type': 'application/json',
   };
 }

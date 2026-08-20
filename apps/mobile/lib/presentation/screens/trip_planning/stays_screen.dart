@@ -100,6 +100,7 @@ class _StaysScreenState extends ConsumerState<StaysScreen> {
                                 : current.addStay(stay);
                           },
                           onBook: () => _book(context, ref, stay),
+                          onViewDetails: () => _showHotelDetails(stay),
                         );
                       },
                     ),
@@ -162,6 +163,22 @@ class _StaysScreenState extends ConsumerState<StaysScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
+
+  void _showHotelDetails(Stay stay) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+      ),
+      builder: (context) => _HotelDetailSheet(
+        stay: stay,
+        onBook: () => _book(context, ref, stay),
+      ),
+    );
+  }
 }
 
 class _PriceFilterField extends StatelessWidget {
@@ -212,12 +229,14 @@ class _StayCard extends StatelessWidget {
     required this.selected,
     required this.onToggleSelect,
     required this.onBook,
+    required this.onViewDetails,
   });
 
   final Stay stay;
   final bool selected;
   final VoidCallback onToggleSelect;
   final VoidCallback onBook;
+  final VoidCallback onViewDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -310,14 +329,20 @@ class _StayCard extends StatelessWidget {
                   'Route2Go may earn a commission on bookings — it never changes your price.'),
             ],
             const SizedBox(height: AppSpacing.md),
-            Row(
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
               children: [
+                OutlinedButton.icon(
+                  onPressed: onViewDetails,
+                  icon: const Icon(Icons.photo_outlined, size: 16),
+                  label: const Text('Photos & details'),
+                ),
                 OutlinedButton.icon(
                   onPressed: onBook,
                   icon: const Icon(Icons.open_in_new, size: 16),
                   label: const Text('Book'),
                 ),
-                const SizedBox(width: AppSpacing.md),
                 OutlinedButton.icon(
                   onPressed: onToggleSelect,
                   icon: Icon(selected ? Icons.check : Icons.add, size: 16),
@@ -327,6 +352,176 @@ class _StayCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HotelDetailSheet extends ConsumerWidget {
+  const _HotelDetailSheet({required this.stay, required this.onBook});
+
+  final Stay stay;
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailsAsync = ref.watch(hotelDetailsProvider(stay));
+    final details = detailsAsync.value;
+    final photoUrl = details?.photoUrl;
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (photoUrl != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  child: Image.network(
+                    photoUrl,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        height: 200,
+                        color: AppColors.surface,
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(),
+                      );
+                    },
+                    errorBuilder: (context, error, stack) =>
+                        const _PhotoPlaceholder(),
+                  ),
+                )
+              else if (detailsAsync.isLoading)
+                Container(
+                  height: 200,
+                  color: AppColors.surface,
+                  alignment: Alignment.center,
+                  child: const CircularProgressIndicator(),
+                )
+              else
+                const _PhotoPlaceholder(),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(stay.name,
+                        style: Theme.of(context).textTheme.headlineSmall),
+                  ),
+                  if (stay.isSponsored) ...[
+                    const DisclosureBadge(label: 'Partner'),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  if (details?.rating ?? stay.rating case final r? when r > 0)
+                    StarRating(rating: r, size: 14),
+                  if (details?.rating != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    HintText('${details!.rating!.toStringAsFixed(1)} · '
+                        '${details.reviewCount != null ? '${details.reviewCount} reviews' : 'Google reviews'}'),
+                  ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      (details?.pricePerNight ?? stay.pricePerNight) != null
+                          ? '${formatCurrency(details?.pricePerNight ?? stay.pricePerNight!)}/night'
+                          : 'Price on request',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  if (stay.distanceFromRouteKm != null)
+                    HintText(
+                        '${formatDistance(stay.distanceFromRouteKm!)} from route'),
+                ],
+              ),
+              if (stay.partnerName != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                HintText('Booked via ${stay.partnerName}'),
+              ],
+              if (stay.amenities.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: 4,
+                  children: stay.amenities
+                      .map((a) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: Colors.black.withValues(alpha: 0.1)),
+                            ),
+                            child: Text(a,
+                                style: Theme.of(context).textTheme.bodySmall),
+                          ))
+                      .toList(),
+                ),
+              ],
+              if (details == null && !detailsAsync.isLoading) ...[
+                const SizedBox(height: AppSpacing.md),
+                const HintText(
+                    'Live photos/details for this hotel are unavailable right now.'),
+              ],
+              if (stay.commission != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                const HintText(
+                    'Route2Go may earn a commission on bookings — it never changes your price.'),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onBook,
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Book this stay'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PhotoPlaceholder extends StatelessWidget {
+  const _PhotoPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      color: AppColors.surface,
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.hotel_outlined, size: 48, color: AppColors.textSecondary),
+          SizedBox(height: AppSpacing.sm),
+          HintText('No photo available for this hotel.'),
+        ],
       ),
     );
   }

@@ -38,8 +38,8 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").trim();
-  const lat = Number(url.searchParams.get("lat"));
-  const lng = Number(url.searchParams.get("lng"));
+  const lat = url.searchParams.has("lat") ? Number(url.searchParams.get("lat")) : NaN;
+  const lng = url.searchParams.has("lng") ? Number(url.searchParams.get("lng")) : NaN;
   const radiusKm = Number(url.searchParams.get("radius_km") ?? "10");
 
   if (q.length < 2) {

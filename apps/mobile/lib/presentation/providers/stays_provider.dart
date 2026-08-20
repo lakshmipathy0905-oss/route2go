@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/stays_repository.dart';
+import '../../domain/entities/hotel_details.dart';
 import '../../domain/entities/stay.dart';
 import 'trip_planning_provider.dart';
 
@@ -43,3 +44,11 @@ final staysNearRouteProvider =
     AsyncNotifierProvider<StaysNotifier, StaysNearRoute>(
   StaysNotifier.new,
 );
+
+/// Live photo + details for one hotel. Returns null when the backend has no
+/// matching listing (or no upstream key is configured). Cached per stay by
+/// the repository so re-opening the sheet never re-hits the paid API.
+final hotelDetailsProvider =
+    FutureProvider.autoDispose.family<HotelDetails?, Stay>((ref, stay) {
+  return ref.watch(staysRepositoryProvider).fetchDetails(stay);
+});

@@ -102,5 +102,8 @@ verify_jwt = false
 [functions.poi-search]
 verify_jwt = false
 
+[functions.hotel-details]
+verify_jwt = false
+
 [functions.admin]
 verify_jwt = false

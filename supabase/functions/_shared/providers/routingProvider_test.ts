@@ -75,6 +75,25 @@ Deno.test("getRoutingProvider returns the mock when no base URL is set", async (
   );
 });
 
+Deno.test("PRODUCTION SAFETY: getRoutingProvider throws if DENO_REGION is set and VALHALLA_BASE_URL is missing", () => {
+  Deno.env.delete("VALHALLA_BASE_URL");
+  Deno.env.delete("ROUTING_PROVIDER_BASE_URL");
+  Deno.env.set("DENO_REGION", "us-east-1"); // Simulate Supabase Edge deployment
+
+  let threw = false;
+  try {
+    getRoutingProvider();
+  } catch (err) {
+    threw = true;
+    assert((err as Error).message.includes("Mock providers are forbidden in production"));
+  } finally {
+    Deno.env.delete("DENO_REGION");
+  }
+
+  assert(threw, "Expected getRoutingProvider to throw in production without Valhalla");
+  restoreEnv();
+});
+
 Deno.test("VALHALLA_BASE_URL wins over the legacy ROUTING_PROVIDER_BASE_URL", async () => {
   Deno.env.set("VALHALLA_BASE_URL", "https://valhalla.example");
   Deno.env.set("ROUTING_PROVIDER_BASE_URL", "https://legacy.example");

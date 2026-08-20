@@ -34,3 +34,10 @@ Thumbs.db
 # Supabase local dev
 supabase/.branches
 supabase/.temp
+
+# k6 raw results (large; commit only the summary reports in docs/)
+infra/load/k6/results/
+
+# Local session tokens / helper scripts with live credentials (never commit)
+infra/security/user_*.json
+infra/security/get_token.sh

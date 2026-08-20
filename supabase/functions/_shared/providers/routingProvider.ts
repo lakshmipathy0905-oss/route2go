@@ -281,6 +281,9 @@ export function getRoutingProvider(): RoutingProvider {
   const baseUrl = Deno.env.get("VALHALLA_BASE_URL") ??
     Deno.env.get("ROUTING_PROVIDER_BASE_URL");
   if (!baseUrl) {
+    if (Deno.env.get("DENO_REGION")) {
+      throw new Error("PRODUCTION SAFETY: VALHALLA_BASE_URL is missing. Mock providers are forbidden in production.");
+    }
     return new MockRoutingProvider();
   }
   const apiKey = Deno.env.get("ROUTING_PROVIDER_KEY") ?? "";

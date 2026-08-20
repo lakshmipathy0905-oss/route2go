@@ -7,7 +7,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/booking_links.dart';
 import '../../../core/config/map_tile_config.dart';
 import '../../../core/local/preferences_store.dart';
 import '../../../core/navigation/geo_math.dart';
@@ -1512,6 +1514,20 @@ class _DestinationSheet extends ConsumerWidget {
   final VoidCallback onShare;
   final VoidCallback? onSave;
 
+  /// Bus booking needs a real city for redBus; only enabled when the server
+  /// provided one (never guessed from a street address).
+  String? get _busCity {
+    final city = result.city?.trim();
+    return (city == null || city.isEmpty) ? null : city;
+  }
+
+  Future<void> _open(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
@@ -1620,6 +1636,34 @@ class _DestinationSheet extends ConsumerWidget {
                     ),
                   ),
                 ],
+                const SizedBox(height: AppSpacing.md),
+                const HintText(
+                    'Booking opens the provider\'s site in your browser — '
+                    'Route2Go never books or takes payment for trains or buses.'),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _open(context, BookingLinks.irctcTrain()),
+                        icon: const Icon(Icons.train, size: 18),
+                        label: const Text('Book train'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busCity == null
+                            ? null
+                            : () => _open(context,
+                                BookingLinks.redBus(toCity: _busCity!)),
+                        icon: const Icon(Icons.directions_bus, size: 18),
+                        label: const Text('Book bus'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

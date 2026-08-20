@@ -49,12 +49,21 @@ class MapTileConfig {
   static const String defaultUserAgentPackageName = 'com.route2go.route2go';
 
   factory MapTileConfig.fromEnvironment() {
+    const defaultOsmUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const resolvedUrl = String.fromEnvironment(
+      'MAP_TILE_URL_TEMPLATE',
+      defaultValue: defaultOsmUrl,
+    );
+
+    if (const bool.fromEnvironment('dart.vm.product') &&
+        resolvedUrl == defaultOsmUrl) {
+      throw UnsupportedError(
+          'PRODUCTION SAFETY: MAP_TILE_URL_TEMPLATE must be configured to a paid provider in release mode. OpenStreetMap public tiles prohibit production traffic.');
+    }
+
     const styleUrl = String.fromEnvironment('MAP_TILE_STYLE_URL_TEMPLATE');
     return MapTileConfig(
-      urlTemplate: const String.fromEnvironment(
-        'MAP_TILE_URL_TEMPLATE',
-        defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      ),
+      urlTemplate: resolvedUrl,
       attribution: const String.fromEnvironment(
         'MAP_TILE_ATTRIBUTION',
         defaultValue: defaultAttribution,
