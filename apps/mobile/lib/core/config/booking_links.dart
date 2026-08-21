@@ -29,4 +29,16 @@ class BookingLinks {
   /// IRCTC official train-search page (no reliable query-parameter deep link,
   /// so we open the search page and the user enters stations).
   static String irctcTrain() => 'https://www.irctc.co.in/nget/train-search';
+
+  /// Google Flights search for a destination city on a date. Flight fares are
+  /// always quoted live by the airline/aggregator; no local availability data.
+  static String flights(
+      {String? fromCity, required String toCity, DateTime? onDate}) {
+    final from = fromCity?.trim();
+    const base = 'https://www.google.com/travel/flights';
+    final params = from == null || from.isEmpty
+        ? '?q=flights%20to%20${Uri.encodeComponent(toCity.trim())}'
+        : '?q=flights%20from%20${Uri.encodeComponent(from)}%20to%20${Uri.encodeComponent(toCity.trim())}';
+    return '$base$params&curr=INR';
+  }
 }

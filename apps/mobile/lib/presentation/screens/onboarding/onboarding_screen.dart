@@ -5,27 +5,42 @@ import 'package:go_router/go_router.dart';
 import '../../../core/local/preferences_store.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/router/app_router.dart';
+import '../../widgets/brand_widgets.dart';
 
 class _OnboardingCard {
-  const _OnboardingCard(this.icon, this.title, this.subtitle);
+  const _OnboardingCard(this.icon, this.title, this.subtitle, this.color);
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color color;
 }
 
 const _cards = [
-  _OnboardingCard(Icons.route_outlined, 'Know your route cost',
-      'See fuel, toll and total cost before you commit to a trip.'),
-  _OnboardingCard(Icons.place_outlined, 'Discover places along the way',
-      'Curated attractions within easy reach of your route.'),
-  _OnboardingCard(Icons.hotel_outlined, 'Find stays within budget',
-      'Stays that fit directly into your overall trip budget.'),
   _OnboardingCard(
-      Icons.calendar_month_outlined,
-      'Build your complete itinerary',
-      'A day-by-day plan generated automatically, fully editable.'),
-  _OnboardingCard(Icons.navigation_outlined, 'Navigate and track expenses',
-      'Confirm your plan, then navigate with a live budget meter.'),
+      Icons.route_outlined,
+      'Plan your journey',
+      'Build a complete trip — destinations, dates, stays and transport.',
+      AppColors.primary),
+  _OnboardingCard(
+      Icons.compare_arrows_outlined,
+      'Compare transportation',
+      'See trains, buses and flights side by side before you choose.',
+      AppColors.accent),
+  _OnboardingCard(
+      Icons.confirmation_number_outlined,
+      'Book tickets',
+      'Search, compare and book your journey all in one place.',
+      AppColors.train),
+  _OnboardingCard(
+      Icons.navigation_outlined,
+      'Navigate your trip',
+      'Turn-by-turn guidance with live budget and expense tracking.',
+      AppColors.flight),
+  _OnboardingCard(
+      Icons.favorite_outline,
+      'Save and manage journeys',
+      'My Trips, bookings, favorites and offline packages — always with you.',
+      AppColors.gold),
 ];
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -48,17 +63,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: TextButton(
-                  onPressed: _finish,
-                  child: const Text('Skip'),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.md, AppSpacing.sm, 0),
+              child: Row(
+                children: [
+                  const BrandWordmark(size: 20, showGlyph: true),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _finish,
+                    child: const Text('Skip'),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -70,31 +90,36 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   final card = _cards[i];
                   return Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 120,
-                          height: 120,
+                          width: 132,
+                          height: 132,
                           decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.1),
+                            color: card.color.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(card.icon,
-                              size: 52, color: AppColors.accent),
+                          child: Icon(card.icon, size: 58, color: card.color),
                         ),
                         const SizedBox(height: AppSpacing.xxl),
                         Text(card.title,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.headlineMedium),
                         const SizedBox(height: AppSpacing.sm),
-                        Text(card.subtitle,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg),
+                          child: Text(
+                            card.subtitle,
                             textAlign: TextAlign.center,
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyLarge
-                                ?.copyWith(color: AppColors.textSecondary)),
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -106,12 +131,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               children: List.generate(
                 _cards.length,
                 (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                  width: i == _page ? 20 : 8,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == _page ? 22 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: i == _page ? AppColors.primary : Colors.black12,
+                    color: i == _page ? AppColors.primary : AppColors.border,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -119,19 +145,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
-              child: ElevatedButton(
-                onPressed: () {
-                  if (_page == _cards.length - 1) {
-                    _finish();
-                  } else {
-                    _controller.nextPage(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
-                    );
-                  }
-                },
-                child:
-                    Text(_page == _cards.length - 1 ? 'Get Started' : 'Next'),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    if (_page == _cards.length - 1) {
+                      _finish();
+                    } else {
+                      _controller.nextPage(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                  },
+                  child:
+                      Text(_page == _cards.length - 1 ? 'Get Started' : 'Next'),
+                ),
               ),
             ),
           ],

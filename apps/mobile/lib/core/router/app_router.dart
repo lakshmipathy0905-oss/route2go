@@ -5,7 +5,13 @@ import '../../presentation/providers/auth_provider.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/onboarding/onboarding_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
+import '../../presentation/screens/shell/main_shell.dart';
 import '../../presentation/screens/home/home_screen.dart';
+import '../../presentation/screens/home/home_dashboard.dart';
+import '../../presentation/screens/explore/explore_screen.dart';
+import '../../presentation/screens/book/book_screen.dart';
+import '../../presentation/screens/trips/trips_dashboard.dart';
+import '../../presentation/screens/settings/profile_tab.dart';
 import '../../presentation/screens/trip_planning/plan_trip_screen.dart';
 import '../../presentation/screens/trip_planning/location_picker_screen.dart';
 import '../../presentation/screens/trip_planning/route_results_screen.dart';
@@ -46,7 +52,16 @@ class AppRoutes {
   static const splash = '/';
   static const onboarding = '/onboarding';
   static const login = '/login';
+
+  // Bottom-nav shell branches (spec Section 7)
   static const home = '/home';
+  static const explore = '/explore';
+  static const book = '/book';
+  static const trips = '/trips';
+  static const profile = '/profile';
+
+  // Full-screen map experience (launched from the dashboard).
+  static const map = '/map';
 
   // Plan Trip flow
   static const planTrip = '/plan-trip';
@@ -130,8 +145,54 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
       ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (context, state) => const HomeDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.explore,
+                builder: (context, state) => const ExploreScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.book,
+                builder: (context, state) => const BookScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.trips,
+                builder: (context, state) => const TripsDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (context, state) => const ProfileTabScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
       GoRoute(
-        path: AppRoutes.home,
+        path: AppRoutes.map,
         builder: (context, state) => const HomeScreen(),
       ),
       GoRoute(

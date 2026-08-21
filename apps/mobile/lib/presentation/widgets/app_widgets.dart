@@ -170,6 +170,61 @@ class AppLoadingState extends StatelessWidget {
   }
 }
 
+/// Pulsing placeholder used while lists and images load — keeps loading
+/// states feeling designed rather than a bare spinner.
+class AppSkeleton extends StatefulWidget {
+  const AppSkeleton({
+    super.key,
+    this.width = double.infinity,
+    this.height = 64,
+    this.radius = AppRadius.md,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  State<AppSkeleton> createState() => _AppSkeletonState();
+}
+
+class _AppSkeletonState extends State<AppSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween(begin: 0.45, end: 1.0).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: AppColors.border,
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
+      ),
+    );
+  }
+}
+
 /// Standard error state — always human language + retry, never a raw
 /// exception string (ERROR UX requirement).
 class AppErrorState extends StatelessWidget {
@@ -211,12 +266,20 @@ class AppErrorState extends StatelessWidget {
   }
 }
 
-/// Standard empty state.
+/// Standard empty state with optional headline + call-to-action.
 class AppEmptyState extends StatelessWidget {
-  const AppEmptyState(
-      {super.key, required this.message, this.icon = Icons.map_outlined});
+  const AppEmptyState({
+    super.key,
+    this.title,
+    required this.message,
+    this.icon = Icons.map_outlined,
+    this.action,
+  });
+
+  final String? title;
   final String message;
   final IconData icon;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -226,17 +289,43 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 40, color: AppColors.textSecondary),
-            const SizedBox(height: AppSpacing.md),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: const BoxDecoration(
+                color: AppColors.primarySoft,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: AppColors.primary),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (title != null) ...[
+              Text(title!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              action!,
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+/// Pulsing placeholder used while lists and images load — keeps loading
+/// states feeling designed rather than a bare spinner.
 
 /// Offline banner — shown at the top of any screen serving cached data.
 class OfflineBanner extends StatelessWidget {

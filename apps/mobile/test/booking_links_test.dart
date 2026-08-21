@@ -54,4 +54,23 @@ void main() {
       );
     });
   });
+
+  group('BookingLinks.flights', () {
+    test('builds a flights query with destination and currency', () {
+      final url = BookingLinks.flights(
+        fromCity: 'Delhi',
+        toCity: 'Mumbai',
+        onDate: DateTime(2026, 8, 21),
+      );
+      expect(url, startsWith('https://www.google.com/travel/flights?'));
+      expect(url, contains('q=flights%20from%20Delhi%20to%20Mumbai'));
+      expect(url, contains('curr=INR'));
+    });
+
+    test('omits origin when unknown and encodes spaces', () {
+      final url = BookingLinks.flights(toCity: 'New Delhi');
+      expect(url, isNot(contains('from%20')));
+      expect(url, contains('to%20New%20Delhi'));
+    });
+  });
 }
