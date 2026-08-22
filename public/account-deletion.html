@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Deletion — Route2Go</title>
+  <meta name="description" content="Request deletion of your Route2Go account and all associated data.">
+  <style>
+    :root {
+      --primary: #0F4C5C;
+      --accent: #0F9D8F;
+      --bg: #FAFCFC;
+      --surface: #FFFFFF;
+      --text: #1F2937;
+      --text-secondary: #6B7280;
+      --border: #E5E7EB;
+      --error: #DC2626;
+      --success: #16A34A;
+      --warning: #F59E0B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    header {
+      text-align: center;
+      padding: 32px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 26px;
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    header p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 18px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .card p, .card li {
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .card ul, .card ol {
+      margin: 0 0 12px 24px;
+    }
+    .card li { margin-bottom: 6px; }
+    .warning-box {
+      background: #FFFBEB;
+      border: 1px solid #FCD34D;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+    }
+    .warning-box h2 {
+      color: #B45309;
+      margin-bottom: 8px;
+    }
+    .warning-box p {
+      color: #78350F;
+      margin-bottom: 0;
+    }
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .steps li {
+      position: relative;
+      padding-left: 40px;
+      margin-bottom: 20px;
+      counter-increment: step;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      margin-top: 16px;
+    }
+    .btn:hover { background: #0D3A47; text-decoration: none; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      margin-left: 8px;
+    }
+    .btn-secondary:hover { background: var(--bg); }
+    footer {
+      text-align: center;
+      padding: 32px 0 16px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      margin-top: 48px;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 16px 12px 32px; }
+      header { padding: 24px 0 16px; }
+      header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Delete your Route2Go account</h1>
+      <p>This page explains how to permanently delete your Route2Go account and all associated data.</p>
+    </header>
+
+    <div class="warning-box">
+      <h2>This action cannot be undone</h2>
+      <p>Deleting your account permanently removes your profile, saved vehicles, trips, expenses, and all personal data from our systems. This process is irreversible.</p>
+    </div>
+
+    <div class="card">
+      <h2>How to request deletion</h2>
+      <p>You can request account deletion in two ways:</p>
+      <ol class="steps">
+        <li>
+          <strong>In-app (recommended)</strong><br>
+          Open Route2Go → Profile → Delete account. This is the fastest method and triggers immediate deletion.
+        </li>
+        <li>
+          <strong>By email</strong><br>
+          Send an email to <a href="mailto:route2go1@gmail.com">route2go1@gmail.com</a> from the email address associated with your account. Include "Delete my Route2Go account" in the subject line. We will process your request within 30 days as required by applicable law (DPDP Act 2023, IT Act 2000).
+        </li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>What gets deleted</h2>
+      <ul>
+        <li>Your account profile and authentication data</li>
+        <li>All saved trips, routes, and itinerary data</li>
+        <li>Vehicle information</li>
+        <li>Expenses and budget history</li>
+        <li>Saved places and favorites</li>
+        <li>Any other personal data linked to your account</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Retention and legal obligations</h2>
+      <p>We will permanently delete your data within <strong>30 days</strong> of receiving your deletion request, except where retention is required by applicable law (e.g., tax, fraud prevention, or regulatory obligations). In such cases, we will retain only the minimum data necessary for the required period and delete it as soon as the legal obligation ends.</p>
+      <p>After deletion, your data cannot be recovered. If you have backed up any data externally (e.g., shared trips via link), those copies may persist beyond our control.</p>
+    </div>
+
+    <div class="card">
+      <h2>Questions?</h2>
+      <p>If you have any questions about account deletion or data retention, contact us at <a href="mailto:route2go1@gmail.com">route2go1@gmail.com</a>.</p>
+    </div>
+
+    <footer>
+      <p>&copy; 2026 Route2Go. All rights reserved.</p>
+      <p style="margin-top: 4px;"><a href="index.html">Privacy Policy</a> &middot; <a href="account-deletion.html">Account Deletion</a></p>
+    </footer>
+  </div>
+</body>
+</html>
