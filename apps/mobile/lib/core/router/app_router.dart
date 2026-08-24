@@ -34,6 +34,8 @@ import '../../presentation/screens/settings/privacy_screen.dart';
 import '../../presentation/screens/settings/terms_screen.dart';
 import '../../presentation/screens/settings/help_support_screen.dart';
 import '../../presentation/screens/settings/delete_account_screen.dart';
+import '../../presentation/screens/safety/safety_centre_screen.dart';
+import '../../presentation/screens/safety/trusted_contacts_screen.dart';
 import '../../presentation/screens/favorites/favorites_screen.dart';
 import '../../presentation/screens/search/search_screen.dart';
 import '../../presentation/screens/admin/admin_dashboard_screen.dart';
@@ -95,6 +97,10 @@ class AppRoutes {
   static const terms = '/settings/terms';
   static const help = '/settings/help';
   static const deleteAccount = '/settings/delete-account';
+
+  // Safety (spec Section 11)
+  static const safetyCentre = '/settings/safety';
+  static const trustedContacts = '/settings/safety/contacts';
 
   // Admin (spec 2.13) — isolated route group, server-gated.
   static const admin = '/admin';
@@ -292,6 +298,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.deleteAccount,
         builder: (context, state) => const DeleteAccountScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.safetyCentre,
+        builder: (context, state) => const SafetyCentreScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.trustedContacts,
+        builder: (context, state) => const TrustedContactsScreen(),
       ),
       GoRoute(
         path: AppRoutes.favorites,

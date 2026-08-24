@@ -299,3 +299,33 @@ APIs, no fake data). All gates green.
 | **Accessibility**: compass/layer/zoom/search all ≥44×44 `IconButton`s with tooltips; map surface still has no OS semantics tree (flutter_map limitation, documented in the completion report) | Done |
 | Verification: `flutter analyze lib test` 0 errors / 7 pre-existing infos (baseline parity, **no new lints**), `flutter test` **91/91**, `dart format` clean, `flutter build apk --debug` ✓, `flutter build web` ✓, `deno check` clean on all 19 function dirs, `deno test --allow-env` **91/91** | Done |
 | Load test (3K target): still **NOT run** — requires owned-infra controlled test; `LOAD_TEST_PLAN.md` now specifies the procedure and acceptance criteria | Deferred |
+
+---
+
+## v3.0 Spec Alignment & Gap Analysis (2026-08-24)
+
+Full analysis: `docs/GAP_ANALYSIS.md`. Summary:
+
+| Spec Section | Status | Notes |
+|---|---|---|
+| **P0 — MVP Core** | ✅ Complete | Onboarding, Auth, Home, Explore, Search, Trip Planner, Route Comparison, Budget, Places/Stays/Fuel, Maps, Live Trip, Profile, Vehicles, Saved Trips, Admin, Security |
+| **11. Safety & Emergency** | 🟡 Partial | Route deviation alert done; trusted contacts, emergency shortcut, fatigue reminder, "I am safe" missing |
+| **12. Notifications** | 🟡 Partial | FCM init done; trip reminders, budget/fuel alerts, scheduling missing |
+| **14. AI/Voice** | 🟡 Partial | TTS voice service done; NL planning, AI explanations, voice commands missing |
+| **19. Analytics** | 🟡 Partial | Firebase + ATT done; product event tracking (`trip_created`, `route_selected`, etc.) missing |
+| **20. Offline (P2)** | 🟡 Shells | Offline banner + Phase2Gate exist; tile caching, offline search missing |
+| **25. Accessibility** | 🟡 Partial | Contrast, touch targets done; reduced motion, full semantics audit missing |
+| **32. B2B/Future (P3)** | ❌ Not started | Fleet, corporate, APIs |
+
+### Tests (2026-08-24)
+
+- `flutter analyze` → **No issues found** (fixed 7 `use_build_context_synchronously` lints)
+- `flutter test` → **106/106** pass
+- `dart format` → clean (129 files)
+- Mobile CI → **PASSING** on GitHub Actions
+
+### Store submission gaps to close
+
+1. **Safety Centre** — trusted contacts UI + backend (spec Section 11)
+2. **Product analytics events** — core funnel tracking (spec Section 19)
+3. **Reduced motion** — `MediaQuery.reduceMotionOf(context)` respect (spec Section 25.2)

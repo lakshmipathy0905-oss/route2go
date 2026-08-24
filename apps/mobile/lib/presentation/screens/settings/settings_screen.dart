@@ -96,6 +96,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           : null,
                     ),
                   ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.health_and_safety_outlined),
+                    title: const Text('Safety Centre'),
+                    subtitle:
+                        const Text('Trusted contacts, sharing, emergency'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _requireLogin(context, ref,
+                        () => context.push(AppRoutes.safetyCentre)),
+                  ),
                 ],
               ),
             ),
