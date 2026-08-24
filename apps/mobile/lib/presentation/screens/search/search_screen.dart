@@ -219,13 +219,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         permissionLabel: 'Continue',
         onRequest: () {},
       );
-      await explainer.showModal(context); // ignore: use_build_context_synchronously
-      if (!mounted) return;
+      if (!context.mounted) return;
+      await explainer.showModal(context);
+      if (!context.mounted) return;
       final picked = await navigator.push<GeoPlace>(
         AppRoutes.locationPicker,
         extra: 'origin',
       );
-      if (picked == null || !mounted) return;
+      if (picked == null || !context.mounted) return;
       origin = NavStop(label: picked.label, lat: picked.lat, lng: picked.lng);
     }
 

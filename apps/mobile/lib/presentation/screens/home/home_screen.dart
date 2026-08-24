@@ -866,13 +866,14 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
         permissionLabel: 'Continue',
         onRequest: () {},
       );
-      await explainer.showModal(context); // ignore: use_build_context_synchronously
+      if (!mounted) return null;
+      await explainer.showModal(context);
       if (!mounted) return null;
       final picked = await navigator.push<GeoPlace>(
         AppRoutes.locationPicker,
         extra: 'origin',
       );
-      if (picked == null || !context.mounted) return null;
+      if (picked == null || !mounted) return null;
       origin = NavStop(label: picked.label, lat: picked.lat, lng: picked.lng);
     }
 
@@ -896,7 +897,7 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     );
 
     if (!mounted) return null;
-    showDialog( // ignore: use_build_context_synchronously
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => const _CalculatingRoutesDialog(),
@@ -904,10 +905,11 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
     ref.read(tripCalculationProvider.notifier).calculate();
     final calc = await ref.read(tripCalculationProvider.future);
     if (!mounted) return null;
-    Navigator.of(context).pop(); // ignore: use_build_context_synchronously
+    Navigator.of(context).pop();
 
     if (calc == null || calc.routes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('No route available for this destination.')),
       );
