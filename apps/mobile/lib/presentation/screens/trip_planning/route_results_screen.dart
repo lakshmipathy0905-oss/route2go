@@ -648,6 +648,7 @@ class _StartNavigationCta extends ConsumerWidget {
       return NavStop(label: device.label, lat: device.lat, lng: device.lng);
     }
 
+    if (!context.mounted) return null;
     final explainer = PermissionExplainer(
       icon: Icons.my_location_outlined,
       title: 'Enable location to navigate',

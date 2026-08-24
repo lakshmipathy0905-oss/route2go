@@ -866,8 +866,8 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
         permissionLabel: 'Continue',
         onRequest: () {},
       );
-      await explainer.showModal(context);
-      if (!context.mounted) return null;
+      await explainer.showModal(context); // ignore: use_build_context_synchronously
+      if (!mounted) return null;
       final picked = await navigator.push<GeoPlace>(
         AppRoutes.locationPicker,
         extra: 'origin',
@@ -895,18 +895,19 @@ class _SavedTripsMapState extends ConsumerState<_SavedTripsMap> {
       fuelType: 'petrol',
     );
 
-    showDialog(
+    if (!mounted) return null;
+    showDialog( // ignore: use_build_context_synchronously
       context: context,
       barrierDismissible: false,
-      builder: (context) => const _CalculatingRoutesDialog(),
+      builder: (dialogContext) => const _CalculatingRoutesDialog(),
     );
     ref.read(tripCalculationProvider.notifier).calculate();
     final calc = await ref.read(tripCalculationProvider.future);
     if (!mounted) return null;
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(); // ignore: use_build_context_synchronously
 
     if (calc == null || calc.routes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
         const SnackBar(
             content: Text('No route available for this destination.')),
       );

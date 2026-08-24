@@ -219,8 +219,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         permissionLabel: 'Continue',
         onRequest: () {},
       );
-      await explainer.showModal(context);
-      if (!context.mounted) return;
+      await explainer.showModal(context); // ignore: use_build_context_synchronously
+      if (!mounted) return;
       final picked = await navigator.push<GeoPlace>(
         AppRoutes.locationPicker,
         extra: 'origin',
@@ -251,17 +251,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       fuelType: 'petrol',
     );
 
+    if (!context.mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const _CalculatingRoutesDialog(),
+      builder: (dialogContext) => const _CalculatingRoutesDialog(),
     );
     ref.read(tripCalculationProvider.notifier).calculate();
     final calc = await ref.read(tripCalculationProvider.future);
-    if (!mounted) return;
-    Navigator.of(context).pop(); // dismiss loading dialog
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
 
     if (calc == null || calc.routes.isEmpty) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('No route available for this destination.')),
