@@ -55,7 +55,8 @@ class _SafetyCentreScreenState extends ConsumerState<SafetyCentreScreen> {
         title: const Text('Safety Centre'),
       ),
       body: contactsAsync.when(
-        loading: () => const AppLoadingState(message: 'Loading safety settings...'),
+        loading: () =>
+            const AppLoadingState(message: 'Loading safety settings...'),
         error: (e, _) => AppErrorState(
           error: e,
           onRetry: () => ref.read(safetyProvider.notifier).load(),
@@ -86,7 +87,8 @@ class _SafetyCentreScreenState extends ConsumerState<SafetyCentreScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+            Icon(Icons.info_outline,
+                color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -115,8 +117,7 @@ class _SafetyCentreScreenState extends ConsumerState<SafetyCentreScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Emergency',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('Emergency', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
               'In an emergency, use your device\'s emergency call feature.',

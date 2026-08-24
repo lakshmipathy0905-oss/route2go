@@ -8,11 +8,9 @@ import 'package:flutter/foundation.dart';
 class AnalyticsEvents {
   AnalyticsEvents._();
 
-  static Future<void> onboardingCompleted() =>
-      _log('onboarding_completed');
+  static Future<void> onboardingCompleted() => _log('onboarding_completed');
 
-  static Future<void> guestTripStarted() =>
-      _log('guest_trip_started');
+  static Future<void> guestTripStarted() => _log('guest_trip_started');
 
   static Future<void> tripCreated({
     required String tripType,
@@ -62,14 +60,11 @@ class AnalyticsEvents {
         'savings_percent': savingsPercent,
       });
 
-  static Future<void> tripSaved() =>
-      _log('trip_saved');
+  static Future<void> tripSaved() => _log('trip_saved');
 
-  static Future<void> tripShared() =>
-      _log('trip_shared');
+  static Future<void> tripShared() => _log('trip_shared');
 
-  static Future<void> tripStarted() =>
-      _log('trip_started');
+  static Future<void> tripStarted() => _log('trip_started');
 
   static Future<void> tripCompleted({
     required bool hasActualExpenses,
@@ -85,8 +80,7 @@ class AnalyticsEvents {
         'partner_type': partnerType,
       });
 
-  static Future<void> businessSubmitted() =>
-      _log('business_submitted');
+  static Future<void> businessSubmitted() => _log('business_submitted');
 
   static Future<void> sponsoredViewed({
     required String businessId,
@@ -95,7 +89,8 @@ class AnalyticsEvents {
         'business_id': businessId,
       });
 
-  static Future<void> _log(String name, {Map<String, Object>? parameters}) async {
+  static Future<void> _log(String name,
+      {Map<String, Object>? parameters}) async {
     try {
       await FirebaseAnalytics.instance.logEvent(
         name: name,

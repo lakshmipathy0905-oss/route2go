@@ -23,7 +23,9 @@ Route2Go is the road-trip planner that shows you the real cost before you go. Pl
 
 • **Expense tracker** — log actual spending as you travel and compare against your budget. Split costs with your group.
 
-• **Live trip navigation** — turn-by-turn directions with off-route deviation warnings and text-to-speech.
+• **Live trip navigation** — turn-by-turn directions with off-route deviation warnings, voice guidance, and text-to-speech.
+
+• **Safety Centre** — manage trusted contacts, share your trip plan and ETA, and access emergency information.
 
 • **Save & share trips** — keep your favourite routes, share trip details with friends, and pick up where you left off.
 
