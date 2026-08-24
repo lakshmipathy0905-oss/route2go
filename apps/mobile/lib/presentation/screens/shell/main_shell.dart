@@ -12,8 +12,10 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: navigationShell,
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(index,
@@ -45,6 +47,7 @@ class MainShell extends StatelessWidget {
             label: 'Profile',
           ),
         ],
+      ),
       ),
     );
   }
